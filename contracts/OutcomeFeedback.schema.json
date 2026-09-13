@@ -1,0 +1,53 @@
+{
+  "": "http://json-schema.org/draft-07/schema#",
+  "title": "OutcomeFeedback",
+  "type": "object",
+  "properties": {
+    "session_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "timestamp_ms": {
+      "type": "integer"
+    },
+    "action_id": {
+      "type": "string"
+    },
+    "user_response": {
+      "type": "string",
+      "enum": [
+        "CANCELLED",
+        "CONTINUED",
+        "VERIFIED",
+        "TIMEOUT",
+        "IGNORED",
+        "NONE"
+      ]
+    },
+    "final_status": {
+      "type": "string",
+      "enum": [
+        "PAYMENT_COMPLETED",
+        "PAYMENT_CANCELLED",
+        "INSTITUTION_BLOCKED",
+        "UNKNOWN"
+      ]
+    },
+    "ground_truth_fraud_label": {
+      "type": "string",
+      "enum": [
+        "FRAUD",
+        "LEGITIMATE",
+        "UNKNOWN"
+      ]
+    }
+  },
+  "required": [
+    "session_id",
+    "timestamp_ms",
+    "action_id",
+    "user_response",
+    "final_status",
+    "ground_truth_fraud_label"
+  ]
+}

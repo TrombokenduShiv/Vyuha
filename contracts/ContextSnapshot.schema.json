@@ -1,0 +1,88 @@
+{
+  "": "http://json-schema.org/draft-07/schema#",
+  "title": "ContextSnapshot",
+  "type": "object",
+  "properties": {
+    "session_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "timestamp_ms": {
+      "type": "integer"
+    },
+    "transaction": {
+      "type": "object",
+      "properties": {
+        "amount_bucket": {
+          "type": "string",
+          "enum": [
+            "LOW",
+            "MEDIUM",
+            "HIGH",
+            "CRITICAL"
+          ]
+        },
+        "beneficiary_novelty": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "channel": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "amount_bucket",
+        "beneficiary_novelty",
+        "channel"
+      ]
+    },
+    "communication": {
+      "type": "object",
+      "properties": {
+        "active": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "active"
+      ]
+    },
+    "device": {
+      "type": "object",
+      "properties": {
+        "capture_risk": {
+          "type": "boolean"
+        },
+        "overlay_risk": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "capture_risk",
+        "overlay_risk"
+      ]
+    },
+    "baseline": {
+      "type": "object",
+      "properties": {
+        "deviation_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "deviation_score"
+      ]
+    }
+  },
+  "required": [
+    "session_id",
+    "timestamp_ms",
+    "transaction",
+    "communication",
+    "device",
+    "baseline"
+  ]
+}

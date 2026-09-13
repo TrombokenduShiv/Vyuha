@@ -1,0 +1,50 @@
+{
+  "": "http://json-schema.org/draft-07/schema#",
+  "title": "InterventionDecision",
+  "type": "object",
+  "properties": {
+    "session_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "timestamp_ms": {
+      "type": "integer"
+    },
+    "action_id": {
+      "type": "string",
+      "enum": [
+        "A0_PASS",
+        "A1_MICRO_PROMPT",
+        "A2_REFLECTION_CHALLENGE",
+        "A3_COOLING_DELAY",
+        "A4_ISOLATION_BREAK",
+        "A5_TRUSTED_VERIFY",
+        "A6_STEP_UP_REQUIRED"
+      ]
+    },
+    "belief_score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "uncertainty": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "reason_codes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "session_id",
+    "timestamp_ms",
+    "action_id",
+    "belief_score",
+    "uncertainty",
+    "reason_codes"
+  ]
+}

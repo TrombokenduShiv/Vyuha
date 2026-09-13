@@ -1,0 +1,708 @@
+VYUHA 2.0
+AGENCY INTEGRITY LAYER FOR COERCION-DRIVEN DIGITAL PAYMENT FRAUD
+30-Page Product Requirements Document (PRD) + Technical Architecture Specification
+
+System thesis: local agency sensing + institutional graph intelligence + safety-constrained adaptive intervention.
+
+
+Prepared for implementation planning, hackathon execution, technical due diligence, mentor review and jury Q&A. This document deliberately separates evidence-backed platform capabilities from proposed Vyuha targets and hypotheses.
+
+DOCUMENT GOVERNANCE
+PRD Control, Evidence Semantics and Decision Principles
+This PRD is a controlled engineering specification rather than a marketing deck. The submitted concept describes Vyuha as an on-device Edge-AI behavioral defense SDK using a sub-50 ms MoE triage, an ST-GNN, a contextual bandit and a trusted-node intervention. The present specification preserves that deep-tech intent while correcting deployment assumptions, moving institution-scale graph learning to the institutional plane, removing unsupported zero-false-positive/zero-battery/compliance guarantees, and defining measurable acceptance criteria.
+
+
+Design principles
+• Agency before anomaly: the system protects the quality of the user decision, not merely whether a transaction looks statistically unusual.
+• Local first: sensitive context is interpreted on-device whenever possible. The core edge decision must continue without a cloud inference dependency.
+• Graph intelligence where graph data exists: mule-ring inference belongs inside participating financial institutions or authorised fraud-intelligence infrastructure, not on an isolated handset.
+• Friction is a sensor: interventions are chosen not only to warn but to obtain safe information and deliberately break the scammer’s synchronous control loop.
+• Uncertainty is a first-class output: when evidence is weak or out-of-distribution, the system should abstain from aggressive action and choose proportionate friction.
+• No magic integration claims: the production path assumes consented integration inside a participating UPI/PSP/bank application and bank-side risk services; a generic payment gateway cannot control every UPI authorization flow.
+• Research claims become product claims only after an evaluation gate defined in this PRD.
+
+
+PRODUCT DEFINITION
+Executive Product Thesis and Success Narrative
+Vyuha is an Agency Integrity Layer embedded in a participating UPI/PSP/banking application and connected to institution-side fraud intelligence. It detects the contextual trajectory that precedes coercion-driven authorised payments, estimates a latent “coercion belief state,” and selects the minimum intervention likely to restore independent decision-making before payment authorization. Digital-arrest scams are the flagship demonstration archetype, but the product category is broader: live-guided authorised payment fraud, including impersonation, fake support, remote-access, emergency, investment and other synchronous coercion patterns.
+
+Why the product exists
+Conventional controls are strongest when the attacker steals credentials, impersonates the user, compromises a device, or creates a structurally suspicious beneficiary. A coercion scam is adversarial in a different way: the legitimate account holder may use the legitimate device, open the legitimate payment application, enter the correct PIN, and intentionally press Pay. The transaction can therefore look authenticated while the human decision has been captured. The submitted script correctly identifies the missing temporal surface: the fraud is often created in the interaction trajectory before the transaction, not in the authorization credential itself. [SRC]
+North-star outcome
+Prevent or materially delay a high-risk coercion-driven payment while adding effectively no perceptible friction to normal low-risk payments. The user must understand why Vyuha intervened, retain a safe path to continue a legitimate transaction, and be able to invoke independent verification without revealing unnecessary private information.
+
+
+PROBLEM SPACE
+Real-World Threat Model: Coercion-Driven Authorised Fraud
+India’s financial cyber-fraud burden is sufficiently large that prevention before fund transfer has clear economic and social value. Government figures reported for 2025 show ₹22,495 crore in reported cyber-fraud losses; CFCFRMS figures separately show 24,02,579 financial-fraud complaints on NCRP for 2025 and more than ₹8,189 crore saved through the reporting/management system by 31 December 2025. The Department of Telecommunications’ Financial Fraud Risk Indicator (FRI), launched in May 2025, had by August 2026 reportedly helped prevent more than ₹5,000 crore of suspected fraud transactions across a growing institutional ecosystem. [EXT; Refs. 14–16] These figures do not prove Vyuha’s efficacy; they demonstrate that upstream cross-ecosystem risk signals can have large preventive value.
+Threat archetype
+• Attacker establishes authority, urgency or fear through a call/video/remote-control channel.
+• Victim is isolated from alternative advice and is instructed to keep the communication channel active.
+• The attacker gradually obtains compliance without necessarily stealing the victim’s banking credentials.
+• Victim opens a genuine payment application and begins a transfer to an instructed beneficiary.
+• The victim may truthfully pass device binding, OTP/PIN and account authentication because the victim is the person authorising the transfer.
+• After payment, recovery becomes difficult; post-fraud investigation, freezing and chargeback/dispute processes are reactive.
+Out of scope
+Vyuha is not a replacement for AML, transaction monitoring, malware protection, SIM-swap detection, FRI, device attestation, KYC, beneficiary cooling periods, bank authentication, law-enforcement reporting or UPI network controls. It is a complementary payer-side behavioural context and adaptive intervention layer.
+
+
+REQUIREMENTS
+Product Scope, Non-Goals and Requirement Priorities
+The MVP is intentionally narrow at the point of authorization but deep in reasoning. It does not attempt to monitor the user continuously. The host application invokes Vyuha for a protected transaction session, Vyuha collects a bounded context snapshot, updates local risk state, optionally consumes a signed institutional graph-risk token, and returns a decision object that the host renders natively.
+
+Non-goals
+• Recording or understanding private calls as a default fraud signal.
+• Reading arbitrary WhatsApp/Telegram/SMS content to classify scams.
+• Claiming to terminate any third-party call across Android versions; the product instead requests closure/remediation through host/platform-supported paths.
+• Executing online reinforcement-learning exploration on real victims.
+• Guaranteeing legal compliance solely through architecture; legal/compliance approval remains an institutional process.
+• Claiming “0% false positives,” “zero battery drain,” or any latency/accuracy number not produced by the documented benchmark harness.
+
+
+USERS
+Personas, Stakeholders and Jobs-to-Be-Done
+
+Primary jobs-to-be-done
+• When I am making a normal payment, let me finish without security theatre.
+• When I am being coached by someone during a high-risk payment, create enough separation for me to reassess independently.
+• When the system is uncertain, ask the least intrusive question that can safely reduce uncertainty.
+• When a recipient is linked to suspicious network behaviour, combine that evidence with my current context instead of treating either signal as sufficient alone.
+• When I need a trusted person, let me choose who is contacted and what they see.
+• When a bank analyst reviews an event, provide a machine-readable trace of signals, versions, risk contributions and action outcomes.
+Human factors requirement
+Warnings must not shame the user or imply incompetence. Scammers exploit authority and urgency; therefore Vyuha should reduce urgency rather than add more. Strong interventions use short declarative statements, a visible cooling period, and a safe explanation of why banks/police do not require a user to remain under another person’s direction while transferring money. The UI should avoid disclosing its exact detection thresholds so attackers cannot easily script around them.
+
+USER JOURNEYS
+End-to-End Flows: Benign, Ambiguous and Coercion-High
+
+
+Figure 2. Runtime decision flow. “Local first” means the edge plane can decide without waiting for a remote model.
+User-control contract
+The SDK returns recommended risk and action, while the participating host owns final transaction enforcement according to regulated policy. For the prototype, the host simulator implements pass, micro-inquiry, reflection, isolation-break, trusted verification and cancel/continue. For production, an institution may map Vyuha actions to its own step-up authentication, cooling period, fraud desk or transaction hold mechanisms. The SDK must never spoof a bank/police authority identity or present itself as law enforcement.
+
+SYSTEM ARCHITECTURE
+Three-Plane Architecture and Trust Boundaries
+
+Figure 3. Vyuha 2.0 architecture. Only the first plane is on-device; graph intelligence remains where relationship data exists.
+Plane A — Edge Agency Runtime
+A lightweight SDK/library embedded in a participating banking/UPI app. It receives host transaction context, coarse device/session signals, local behavioural baseline features and optional graph-risk tokens. It executes the sparse Risk-MoE, belief-state update, uncertainty gate and intervention policy locally. The production runtime should be portable to ExecuTorch/LiteRT or an equivalent signed on-device runtime. [EXT; Refs. 27–28]
+Plane B — Institutional Graph Intelligence
+A bank/PSP-side service maintains a dynamic heterogeneous graph over entities available to that institution. The ST-GNN produces beneficiary/network risk and compact structural explanations. The edge device receives only a signed, short-lived risk token rather than the graph itself. This corrects the original “local ST-GNN” claim: a handset generally lacks the cross-account topology required for mule-ring inference.
+Plane C — Policy, Simulation and Learning
+Offline training uses labelled/synthetic interaction trajectories, graph snapshots and a multi-agent scam digital twin. A conservative contextual bandit learns among a fixed action catalogue, with safety constraints and no live exploratory weakening of controls. Production outcomes are logged for later offline evaluation and retraining after governance approval. [EXT; Refs. 23–24]
+
+
+OFFLINE-FIRST
+Connectivity Model, Degradation Logic and Local State
+“Offline-first” in Vyuha means that the safety-critical payer-side inference path has no dependency on cloud inference. It does not mean that a national mule graph can be reconstructed on a phone. Online institutional intelligence is an augmentation layer. This distinction is essential for both privacy and feasibility.
+
+Local state
+• Session state: transaction ID, start time, recipient pseudonymous identifier, amount bucket, payment rail, current OODA phase.
+• Local baseline: quantiles/embeddings for typical amount, beneficiary novelty, time-of-day and recent payment patterns; production design should minimise retention and use host-provided features where possible.
+• Belief state: compact scalar/vector summarising current probability/confidence of coercion and missing-data masks.
+• Model/config manifest: signed version, hash, calibration set version, policy version, minimum supported host SDK.
+• Optional cache: signed recipient risk token with TTL, issuer and nonce binding; never a raw graph extract.
+
+
+EDGE SENSING
+Signal Interface and Privacy-Minimal Feature Engineering
+The edge model is only as defensible as its signal contract. Vyuha should request signals that are technically obtainable inside the host application, interpretable, minimally invasive and useful in combination. It should avoid covert cross-app surveillance.
+
+Signals explicitly excluded from core MVP
+• raw call audio
+• speech transcription
+• screen pixels
+• camera feed
+• keystroke content
+• continuous GPS trail
+• arbitrary message contents
+• full contact book export
+Foreground-app detection
+Because the intended deployment is inside the participating UPI/bank app, Vyuha already knows when its own protected transaction flow is active. Querying other apps through UsageStatsManager generally requires usage-access permission and explicit device settings; this is not necessary for the core product and should not be a default dependency. [EXT; Ref. 11]
+
+EDGE ML
+Sparse Risk-MoE: Conditional Computation Without Buzzword Abuse
+The original deck uses a “MoE router” to bypass most normal traffic. The implementation should make that term concrete. The Vyuha Risk-MoE is a small conditional ensemble in which a gate activates only the experts relevant to the current risk context. Sparse gating is motivated by mixture-of-experts work on conditional computation, but Vyuha applies the principle to tiny interpretable risk experts rather than giant language-model capacity. [EXT; Ref. 18]
+
+Gate design
+A very small gate g(x) produces expert activation weights. For the MVP, use top-k = 2 or 3 experts plus a mandatory cheap baseline expert. The gate must expose which experts activated and their weights. Conditional execution may reduce average compute, but the project must benchmark this rather than claim “zero overhead.”
+Proposed local output
+`LocalRisk = {score, expert_scores, gate_weights, confidence, missing_mask, ood_score, model_version}`. The score is not the final decision. It becomes evidence for the belief-state update and policy layer.
+
+
+SEQUENTIAL INFERENCE
+Coercion Belief State: POMDP-Inspired Risk Accumulation
+Coercion is latent: the system cannot directly observe whether a person is psychologically controlled. It observes noisy proxies over time. Therefore Vyuha models a short-lived belief state rather than issuing a one-shot classifier verdict. This is conceptually aligned with partially observable decision processes, where actions are chosen from a belief over hidden state. [EXT; Ref. 17]
+
+Belief state contents
+
+Update rule
+For the MVP, implement a small GRU/TCN or Bayesian/logit updater over typed event embeddings. The product abstraction is more important than pretending to have an exact psychological model: each new event updates belief, and no isolated event is labelled “scam.” A sequence such as communication-active → new beneficiary → large deviation → capture/control risk → instructed-response pattern should accumulate risk more strongly than any one feature alone.
+Why this matters in Q&A
+The belief-state framing explains why Vyuha is not a rules engine and why temporal ML exists in the architecture. It also supports adaptive questioning: an intervention creates a new observation, so friction can deliberately reduce uncertainty. That makes the OODA loop functional rather than decorative.
+
+GRAPH INTELLIGENCE
+Heterogeneous Spatio-Temporal GNN: Data Model and Rationale
+
+Figure 4. Example heterogeneous temporal graph. Production node/edge availability varies by institution and policy.
+Why heterogeneous
+Fraud networks are not naturally a single-type account-to-account graph. Risk can emerge from relationships among accounts, VPAs, devices, phones, merchants, IP/network indicators and complaint entities. Heterogeneous graph models use relation/type-specific parameters; HGT is a published architecture for typed heterogeneous graphs and includes temporal encoding ideas. [EXT; Ref. 19]
+Why temporal
+Mule behaviour is dynamic: fan-in/fan-out bursts, newly activated accounts, short dwell time and rapidly changing neighborhood patterns are temporal phenomena. TGN and TGAT are research foundations for event-time graph learning and inductive temporal representations. [EXT; Refs. 20–21]
+Why fraud-specific robustness
+Fraudsters camouflage by interacting with benign nodes and changing relations. CARE-GNN demonstrates relation-aware and camouflage-resistant design ideas for fraud graphs. Vyuha does not claim to reproduce CARE-GNN exactly; it borrows the requirement that neighbor selection and relation aggregation be robust to adversarially benign-looking connectivity. [EXT; Ref. 22]
+
+
+ST-GNN DETAILS
+Graph Construction, Temporal Message Passing and Risk Token
+The institution ingests event-time edges into a typed graph. Each event is represented as `(src_type, src_id, relation, dst_type, dst_id, timestamp, edge_features)`. The model must support previously unseen nodes and preserve event order. A practical architecture for the prototype is: typed feature encoders → relation-specific projection/attention → temporal encoding/memory → neighborhood aggregation → beneficiary classifier + topology embedding.
+
+Signed risk token
+The graph service returns a compact object such as: `issuer, beneficiary_hash, risk_bucket, calibrated_score, topology_codes[], model_version, issued_at, expires_at, nonce, signature`. The edge SDK verifies signature, freshness and nonce/session binding. This prevents replaying an old “safe” token for a different payment and avoids shipping sensitive graph neighborhoods to the handset.
+Loss and sampling
+Fraud labels are highly imbalanced and delayed. Use time-based train/validation/test splits, negative sampling that preserves realistic degree distributions, focal/class-weighted objectives where justified, and evaluation by precision-recall rather than raw accuracy. The graph model should be tested against camouflage perturbations: adding benign edges, splitting fan-out across mules, delaying bursts and using new nodes.
+
+
+DECISION INTELLIGENCE
+Conformal / Selective Prediction and the Abstention Contract
+A payment-safety model should not be forced to pretend certainty. Vyuha therefore separates risk from confidence. Conformal prediction and selective classification motivate distribution-free or calibrated uncertainty sets and explicit abstention, especially in high-stakes settings. [EXT; Ref. 25] The MVP can implement a simpler split-conformal or calibrated confidence wrapper rather than an academically maximal method.
+
+Calibration requirements
+• Calibration split must be temporally separated from training data where possible.
+• Report reliability diagram / expected calibration error and classwise precision-recall.
+• Thresholds are policy artifacts, versioned separately from model weights.
+• Threshold changes require evaluation on benign-friction metrics as well as fraud recall.
+• Out-of-distribution testing includes unseen scam scripts, unseen recipients, missing-signal combinations and accessibility/device variants.
+Product reason
+The ByteBuilt fraud theme explicitly values reducing losses without over-flagging genuine users. [SRC] Uncertainty-aware abstention gives Vyuha a technical answer to that judging criterion: the system is designed to know when evidence is insufficient, and the policy can choose a low-cost reversible action instead of pretending the model is infallible.
+
+ADAPTIVE INTERVENTION
+Safety-Constrained Contextual Bandit and Offline RL
+The action-selection problem is sequential and personalised: the same warning is not optimal for every context, but live exploration in financial safety is unacceptable. Vyuha therefore uses a constrained contextual bandit / offline-RL workflow. Conservative contextual bandit research explicitly studies algorithms constrained to perform no worse than a baseline policy, while offline RL studies policy learning from previously collected data without online exploration. [EXT; Refs. 23–24]
+
+Context vector
+Bandit context includes belief score, confidence, active expert scores, amount-loss bucket, payee novelty, access-risk state, graph-risk bucket, prior action, prior user response, accessibility flags and time remaining before authorization. Sensitive raw content is excluded.
+Reward design
+Use an offline composite reward that strongly penalises a completed known-fraud payment, moderately penalises unnecessary friction on benign sessions, rewards safe cancellation/verification in high-risk sessions, and penalises repeated/confusing interventions. Policy training occurs in simulation and logged datasets; production policy ships as frozen parameters plus hard safety constraints.
+
+
+AGENTIC RESEARCH
+Multi-Agent Scam Digital Twin for Adversarial Policy Training
+The most novel agentic component belongs in training, not in the critical transaction path. Vyuha’s Scam Digital Twin is a multi-agent simulation environment that generates adaptive coercion trajectories and tests defensive interventions before they are exposed to users. This lets the project use agentic systems for a problem they are uniquely suited to: red-team adaptation and counterfactual scenario generation.
+
+Scenario grammar
+Scenario generation should be structured, not free-form roleplay. Define scam-stage variables such as contact → authority establishment → isolation → remote-control request → beneficiary instruction → payment initiation → intervention → adaptation → outcome. LLM agents may generate linguistic variety offline, but the runtime model trains on structured event traces and labels rather than depending on generated text semantics.
+Red-team experiments
+• Scammer instructs victim to answer “No” to a direct coercion question.
+• Scammer switches from cellular call to VoIP or another device.
+• Scammer uses a low-risk new mule with no graph history.
+• Scammer splits one large payment into multiple smaller payments.
+• Scammer asks user to disable safety tools or accessibility protections.
+• Benign comparator: legitimate family member guides an older user through a normal payment.
+
+
+AGENTIC RUNTIME
+OODA Orchestration and Deterministic Multi-Agent Boundaries
+The deck’s OODA framing can remain, but the runtime “agents” should be typed services/state machines rather than several LLMs debating a payment. This gives the system agentic decomposition without nondeterministic chatter on the safety-critical path.
+
+State-machine rules
+• Every session has a globally unique transaction/session nonce.
+• The Policy Agent can choose only actions in the institution-approved catalogue.
+• The host can veto or strengthen an action according to institutional policy, but must log the override reason.
+• A completed high-friction action cannot loop indefinitely; maximum intervention count and timeout are explicit.
+• Model/policy version is immutable within one protected transaction session.
+• Generative explanations, if used, are post-decision and templated/guarded; the reason code is the source of truth.
+Why LangGraph is optional
+LangGraph can orchestrate the prototype and visualize state transitions, but it is an implementation framework, not the innovation. Production may replace it with Kotlin/C++ state machines or a service workflow. The PRD therefore specifies typed states and contracts independently of orchestration library.
+
+INTERVENTIONS
+Isolation Break Protocol and Cognitive Friction Design
+The signature intervention is not “a smarter warning.” It is a controlled break in the synchronous scammer–victim feedback loop. The attacker’s advantage is often continuous authority and coaching. Vyuha should deliberately create a short, safe interval in which the user can act without external direction.
+
+Platform-backed isolation
+Android Play Integrity can report whether apps are running that could capture the screen, display overlays or control the device. Current remediation dialogs include mechanisms to prompt closure of unknown or all capture/control risks. [EXT; Refs. 7–9] This is materially stronger and more privacy-preserving than attempting to enumerate every installed app or draw an unsafe overlay above a banking UI.
+Copy requirements
+• Do not say “You are being scammed” when the model is uncertain.
+• Do say what the system observed at a high level: “A screen-control risk is active during this payment.”
+• Do not expose exact model thresholds, graph features or rule combinations.
+• Always provide a legitimate recovery path: close risky access, verify independently, or contact the bank.
+• Use plain language and regional-language-ready string resources; voice output is optional and must never read sensitive payment details aloud by default.
+
+TRUSTED VERIFICATION
+Safety Circle, Bank Escalation and Consent Model
+The original “family emergency ping” becomes a user-configurable Safety Circle. Family is not universally safe, available or appropriate. The product must support a trusted friend, caregiver, sibling, spouse, or no personal contact, with a bank-fraud-desk fallback where available.
+
+Consent and data minimization
+The DPDP Act and Rules establish obligations around lawful processing, notice, purpose limitation and security safeguards; this PRD does not claim automatic compliance. [EXT; Refs. 12–13] Product requirements are therefore conservative: Vyuha must expose a host-readable data inventory, purpose strings, retention settings, consent/notice hooks where consent is the chosen basis, and deletion/export interfaces for data the host determines is personal data under applicable law.
+
+
+INTERFACES
+Android SDK / Host Contract
+The SDK API is designed around a protected payment session. Names below are normative conceptual interfaces; implementation language may be Kotlin/Java with a native C++ inference core.
+
+Core data classes
+`RiskAssessment { riskScore, riskTier, confidence, abstain, localExpertScores, graphRisk?, missingMask, reasonCodes[], modelVersion, policyVersion, timings }`
+`InterventionDecision { actionId, severity, copyKey, remediationType?, coolingMs?, escalationAllowed, hostEnforcementHint, reasonCodes[] }`
+`DecisionTrace { sessionNonce, eventHashes[], assessmentHash, actionHistory[], outcomeCode, model/policy versions, latencyBreakdown }`
+Host integration rules
+• The host renders all payment UI natively; Vyuha does not require SYSTEM_ALERT_WINDOW for core flows.
+• The host must call `startSession` before final authorization and must not reuse a session nonce across transactions.
+• The host must support a fail-open/fail-safe policy configured by the institution; SDK exceptions cannot silently masquerade as PASS.
+• Personally identifying fields should be tokenized/pseudonymized before entering the local ML feature vector where not needed in raw form.
+
+INTERFACES
+Institutional Graph Service, Event Schemas and Signed Tokens
+The institutional interface can be REST or gRPC; the logical contract is stable. The graph service is not queried by beneficiary raw account number from an untrusted client. The participating host/backend should broker requests, bind them to the transaction and return a signed token to the edge SDK.
+
+Example event envelope
+`{event_id, ts, src_type, src_id_token, relation, dst_type, dst_id_token, amount_bucket, channel, institution_id, label_state, provenance}``
+Retention and lineage
+• Every training example must retain provenance to source table/event class and label timestamp so post-event labels do not leak into earlier predictions.
+• Graph snapshots and train/test splits are time-versioned to prevent future-edge leakage.
+• Outcome labels have states: UNKNOWN, USER_CANCELLED, VERIFIED_SAFE, SUSPECTED_FRAUD, CONFIRMED_FRAUD; model training uses only approved label states.
+• Model registry records graph schema version, feature code hash, sampling configuration, training date range and calibration date range.
+
+
+PRIVACY & COMPLIANCE
+Data Flow, DPDP Alignment and Governance Controls
+
+Figure 5. Data-minimisation architecture. “Not collected” applies to the Vyuha core design; a host app may have its own independent data practices.
+Governance requirements
+
+Compliance language
+Marketing and jury material must say “designed for privacy-by-design and DPDP-aligned implementation,” not “100% compliant.” Compliance depends on the deploying institution’s role, legal basis, notices, contracts, security controls, retention and operational processes. The Rules notified in 2025 also reinforce implementation details beyond the 2023 Act. [EXT; Refs. 12–13]
+
+SECURITY
+Abuse Cases, Adversarial ML and Defensive Controls
+
+Adversarial ML test suite
+• Feature suppression: remove one signal family and verify graceful degradation.
+• Feature contradiction: graph high / local low and graph low / local high.
+• Temporal perturbation: reorder benign events; delay/coalesce scam events.
+• Camouflage: add benign graph neighbors and spread fan-out across accounts.
+• Threshold probing: repeated borderline sessions should not reveal exact policy cutoffs.
+• Model extraction resistance: SDK exposes reason codes, not raw logits for every internal expert to untrusted callers.
+
+ML LIFECYCLE
+Datasets, Training, Versioning and Research Protocol
+A technically ambitious architecture becomes credible only when data provenance and evaluation are explicit. The hackathon prototype can use synthetic graph and interaction data, but every demo must label synthetic evidence as synthetic. Production efficacy claims require institution-approved historical/pilot data.
+
+Training pipeline
+1. Freeze schema and label definition; generate/extract time-versioned dataset.
+2. Train local experts and graph model independently; measure component metrics.
+3. Calibrate probabilities / conformal scores on held-out time slice.
+4. Generate policy trajectories from digital twin and logged outcomes; train conservative action policy offline.
+5. Run integrated replay with exact runtime feature transformations.
+6. Export quantized edge bundle; benchmark on actual Android device through the same SDK interface.
+7. Register hashes/versions; only then promote to pilot/shadow environment.
+Future federated learning
+Federated averaging is a research-backed pattern for training across decentralised data without centralising raw records. [EXT; Ref. 26] A future cross-institution Vyuha could federate selected model updates, but regulatory, competitive, poisoning and non-IID issues make this a roadmap item, not an MVP dependency.
+
+EVALUATION
+Benchmark Matrix, Metrics and Claim Gate
+
+Figure 6. Evaluation ladder. Hackathon evidence can satisfy early stages; production claims require later stages.
+
+Claim gate
+A number appears in the pitch only if the corresponding benchmark artifact exists. For example, “sub-50 ms” requires measured p95 local inference on named hardware and software build; “95% fast path” requires a benign evaluation distribution and fast-path proportion; “low false positives” requires a defined negative set and confidence interval. Until then, write “target” or “design objective.”
+
+OBSERVABILITY & RELIABILITY
+SLOs, Logs, Model Monitoring and Failure Recovery
+
+SLOs and recovery
+• [TARGET] SDK availability >=99.95% within a healthy host process; crash-free protected sessions >=99.99% after production hardening.
+• Risk service timeout is bounded (e.g., 120 ms budget in the host backend); timeout produces UNKNOWN_GRAPH, not PASS.
+• Bundle update is atomic: download → signature/hash verify → compatibility check → staged activation → health monitor → rollback on failure.
+• A model/policy can be remotely disabled by signed kill-switch configuration while retaining a deterministic baseline safety policy.
+• Time synchronisation errors beyond tolerance invalidate short-lived risk tokens and fall back to local mode.
+• All high-friction decisions expose a stable reason code for support and audit; internal neural activations are not presented as explanations.
+Model monitoring
+Monitor feature missingness, score distributions, calibration drift, intervention rate, graph token age, action outcomes and subgroup/accessibility regressions. Drift alerts trigger investigation, not automatic online retraining. A new model is promoted only through the lifecycle on page 25.
+
+HACKATHON EXECUTION
+24-Hour Vertical Slice, Team Split and Demo Acceptance
+The ByteBuilt rulebook requires the final teams to build/refine the prototype during the 24-hour finale and submit a working model, source code, presentation and documentation. It also states that projects must be original and existing projects cannot be submitted. [SRC] The team should therefore treat this PRD, research, diagrams and planning as preparation, while competition-specific implementation follows organiser rules and any clarification received at briefing.
+
+Must-demo acceptance sequence
+1. Benign payment executes with no Vyuha UI; trace shows fast path and measured local latency.
+2. High-risk scenario starts with active communication/access-risk + anomalous amount/new beneficiary.
+3. Graph service scores a suspicious beneficiary from the live synthetic temporal graph and returns signed token.
+4. Belief state rises across events; UI can display an engineering/debug trace for judges without exposing this to end users.
+5. Policy selects isolation-break / close-risk / cooling action; user can verify or cancel.
+6. Dashboard shows model versions, reason codes, graph motif and measured benchmark values, clearly marked synthetic where applicable.
+
+
+ROADMAP & TRACEABILITY
+Phased Delivery, Requirement Matrix and Judge-Ready Differentiation
+
+Traceability to judging criteria
+
+
+Release acceptance checklist
+• No unsupported “zero” claims.
+• MuleHunter comparison worded accurately.
+• ST-GNN runs institution-side in architecture.
+• No generic overlay dependency.
+• Offline RL/bandit is frozen at runtime.
+• Synthetic data clearly labelled.
+• Every deep-tech module has a measurable interface and test.
+
+REFERENCES
+Source Provenance and Research Bibliography
+[1] ByteBuilt 1.0 Rule Book, attached competition document. Used for themes, flow, deliverables, originality rules and judging weights.
+[2] The Syndicates — Vyuha Pitch Deck (ByteBuilt 1.0), attached. Used as source of submitted concept, team roles, original architecture claims and roadmap.
+[3] “ByteBuilts 1.0 Script — Vyuha,” attached. Used for the user story and “fraud is in the hours before the transaction” framing.
+[4] Vyuha Pitch Deck (legacy), attached. Used as historical concept reference.
+[5] Reserve Bank of India, Annual Report 2024–25, section on RBIH MuleHunter.ai: supervised ML model for near-real-time mule account identification. https://www.rbi.org.in/scripts/AnnualReportPublications.aspx?Id=1436
+[6] NPCI, UPI Frequently Asked Questions — TPAP onboarding through sponsor bank and merchant integration context. https://www.npci.org.in/what-we-do/upi/faqs
+[7] Android Developers, Play Integrity API — integrity verdicts / app access risk. https://developer.android.com/google/play/integrity/verdicts
+[8] Android Developers, Secure the Environment / Fraud Prevention — app access risk privacy and enforcement guidance. https://developer.android.com/security/fraud-prevention/environment
+[9] Android Developers, Play Integrity remediation dialogs — closure of capture/control access risk. https://developer.android.com/google/play/integrity/remediation
+[10] Android Developers, AudioManager API — MODE_IN_CALL and MODE_IN_COMMUNICATION. https://developer.android.com/reference/android/media/AudioManager
+[11] Android Developers, UsageStatsManager API — usage access permission requirements. https://developer.android.com/reference/android/app/usage/UsageStatsManager
+[12] Ministry of Electronics and Information Technology, Digital Personal Data Protection Act, 2023. https://www.meity.gov.in/static/uploads/2024/02/Digital-Personal-Data-Protection-Act-2023-1.pdf
+[13] MeitY, Digital Personal Data Protection Rules, 2025 and enforcement materials. https://www.meity.gov.in/documents/act-and-policies/digital-personal-data-protection-rules-2025-gDOxUjMtQWa
+[14] Press Information Bureau / Department of Telecommunications, Financial Fraud Risk Indicator prevents suspected cyber-fraud transactions of over ₹5,000 crore, 8 Sep 2026. https://www.pib.gov.in/PressReleasePage.aspx?PRID=2307871
+[15] PIB / Ministry of Home Affairs, CFCFRMS statistics through 31 Dec 2025: >₹8,189 crore saved; 2025 NCRP financial-fraud complaints/amount table. https://www.pib.gov.in/PressReleasePage.aspx?PRID=2226441
+[16] PIB, “India recorded ₹22,495 crore in losses to cyber fraud in 2025,” 21 Aug 2026. https://www.pib.gov.in/PressReleasePage.aspx?PRID=2301973
+[17] L. P. Kaelbling, M. L. Littman, A. R. Cassandra, “Planning and acting in partially observable stochastic domains,” Artificial Intelligence, 1998.
+[18] N. Shazeer et al., “Outrageously Large Neural Networks: The Sparsely-Gated Mixture-of-Experts Layer,” ICLR, 2017.
+[19] Z. Hu et al., “Heterogeneous Graph Transformer,” WWW, 2020, DOI 10.1145/3366423.3380027.
+[20] E. Rossi et al., “Temporal Graph Networks for Deep Learning on Dynamic Graphs,” arXiv:2006.10637, 2020.
+[21] D. Xu et al., “Inductive Representation Learning on Temporal Graphs (TGAT),” ICLR, 2020.
+[22] Y. Dou et al., “Enhancing Graph Neural Network-based Fraud Detectors against Camouflaged Fraudsters (CARE-GNN),” CIKM, 2020.
+[23] A. Kazerouni et al., “Conservative Contextual Linear Bandits,” NeurIPS, 2017.
+[24] S. Levine et al., “Offline Reinforcement Learning: Tutorial, Review, and Perspectives on Open Problems,” arXiv:2005.01643, 2020.
+[25] A. N. Angelopoulos and S. Bates, “A Gentle Introduction to Conformal Prediction and Distribution-Free Uncertainty Quantification,” 2022.
+[26] B. McMahan et al., “Communication-Efficient Learning of Deep Networks from Decentralized Data,” AISTATS, 2017.
+[27] PyTorch, ExecuTorch — on-device inference architecture and Android runtime. https://pytorch.org/projects/executorch/ and https://docs.pytorch.org/executorch/stable/using-executorch-android.html
+[28] Google AI Edge, LiteRT NPU delegates — mobile inference acceleration context. https://ai.google.dev/edge/litert/android/npu
+
+END OF CONTROLLED PRD • VYUHA 2.0
+
+--- TABLE 0 ---
+Category thesis — Banks can authenticate identity and transaction credentials; Vyuha is designed to estimate whether the authenticated decision is being made under live external coercion. The product objective is to protect user agency without turning the device into a surveillance system.
+
+--- TABLE 1 ---
+Field | Value
+Competition | ByteBuilt 1.0 — AI for Business / Fraud & Risk Detection
+Team | The Syndicates — 4 members
+Document status | Design baseline v2.0; proposed targets are not production claims
+Primary deployment | Participating PSP/TPAP/banking application + bank fraud infrastructure
+Architecture posture | Offline-first edge inference; online institutional graph augmentation; privacy-by-design
+Core deep-tech | Sparse Risk-MoE, temporal heterogeneous GNN, belief-state inference, conformal uncertainty, conservative contextual bandit, multi-agent digital twin
+
+--- TABLE 2 ---
+Tag | Meaning | How to read it
+[SRC] | Source-derived | Directly grounded in the ByteBuilt rulebook, current Vyuha deck, legacy deck or submitted script.
+[EXT] | Externally verified | Supported by official platform/regulatory documentation or published research listed in References.
+[REQ] | Product requirement | Normative behavior Vyuha shall implement.
+[TARGET] | Engineering target | A benchmark goal to be measured; not a current achievement.
+[HYP] | Research hypothesis | Technically plausible design requiring experiment before product claim.
+
+--- TABLE 3 ---
+Page map | Coverage
+1–4 | Product thesis, evidence semantics, problem and threat model
+5–10 | Requirements, users, flows, architecture, offline mode, signals
+11–18 | Risk-MoE, belief state, heterogeneous ST-GNN, uncertainty, RL, agentic systems
+19–24 | Interventions, Safety Circle, SDK/service interfaces, privacy, security
+25–30 | ML lifecycle, evaluation, observability, hackathon plan, roadmap, references
+
+--- TABLE 4 ---
+Competition fit — ByteBuilt evaluates innovation and impact at 25 marks each, feasibility and prototype quality at 20 each, and presentation/Q&A at 10. The architecture therefore optimizes for a technically defensible vertical slice that can be demonstrated in the 24-hour finale, not for breadth without evidence. [SRC]
+
+--- TABLE 5 ---
+One-line product — “Authentication protects identity. Vyuha protects intent.”
+
+--- TABLE 6 ---
+Success dimension | PRD outcome
+User safety | High-risk sessions receive context-aware intervention before authorization.
+User autonomy | No irreversible block is performed by the SDK alone; hard blocks/holds are controlled by the participating institution and policy.
+Privacy | Core design does not require call audio, speech transcription, screen content, or raw chat content.
+Latency | Local fast path is designed for sub-50 ms p95 on target Android hardware; measured results required before claim.
+Robustness | No single signal such as “call >20 minutes” is sufficient to label coercion.
+Explainability | Every intervention carries a reason code and a human-readable rationale.
+Offline continuity | Local risk scoring and native interventions remain available if the graph augmentation service is unreachable.
+
+--- TABLE 7 ---
+Adversary capability | Assumption
+Social coaching | Attacker can tell the victim what to click and can adapt to visible warnings.
+Beneficiary rotation | Attacker can rotate VPAs/accounts and use mule chains.
+Remote-access tools | Attacker may induce screen capture/control or overlays where platform rules permit.
+Signal evasion | Attacker can move from cellular to VoIP, messaging, another device, or short calls.
+No device compromise | Some attacks require no malware; therefore malware-only detection is insufficient.
+Institutional blind spots | One bank may see only part of a cross-bank mule topology.
+
+--- TABLE 8 ---
+Priority | Requirement
+P0 | Run core edge inference locally; no remote LLM/API call on the critical authorization path.
+P0 | Support a silent fast path for benign sessions and an auditable reason-coded path for elevated sessions.
+P0 | Integrate as an SDK/module in the participating host app; no dependency on generic Android overlays for core banking UX.
+P0 | Model coercion as evidence accumulated over a short event sequence; no single trigger is conclusive.
+P0 | Use institution-side heterogeneous temporal graph intelligence when available, but fail safely when unavailable.
+P0 | Use a constrained intervention policy with only pre-approved actions; no unconstrained generative action.
+P1 | Use calibrated/selective uncertainty to separate pass, mild friction, strong friction and abstention.
+P1 | Provide Safety Circle / bank-fraud-desk escalation with explicit user control and minimal disclosure.
+P1 | Support signed model/config bundles, version rollback and device/integrity telemetry.
+P2 | Federated/cross-institution learning and telecom-derived risk enrichment.
+
+--- TABLE 9 ---
+Definition of done — For the hackathon, “working” means the jury can run one benign and one coercion scenario, see actual local inference outputs, see the graph-risk service return a real score from a temporal heterogeneous graph, observe a policy-selected intervention, and inspect the decision trace. A slide-only architecture does not satisfy P0 prototype quality.
+
+--- TABLE 10 ---
+Persona / stakeholder | Need | Vyuha job
+Everyday payer | Complete normal payments instantly and safely. | Remain invisible unless meaningful risk appears; explain intervention without panic.
+Coerced payer | Escape an attacker-controlled cognitive loop. | Create a safe interruption, independent verification and a reversible path away from the payment.
+Older / vulnerable user | Avoid confusing security jargon. | Use direct language, large actions, trusted verification and no blame.
+PSP / TPAP product owner | Reduce authorised-fraud losses without hurting conversion. | Expose SDK decision contracts, experiment controls and low-friction policies.
+Bank fraud team | Use beneficiary network context and outcomes. | Supply graph-risk tokens; receive structured reasons/outcomes for investigation.
+Security / compliance | Control sensitive-data handling and model behavior. | Enforce data minimization, auditability, signed models and explicit policy boundaries.
+Safety Circle contact | Help without receiving unnecessary financial data. | Receive minimal verification request only after configured escalation.
+
+--- TABLE 11 ---
+Flow | Sequence | Expected experience
+A — Benign | Known payee → normal amount → clean access-risk verdict → local baseline normal → fast path. | No popup; host receives PASS + reason=LOW_RISK_FAST_PATH.
+B — Ambiguous | New payee + amount deviation + active communication, but clean device state and low graph risk. | One low-cost micro-inquiry or reflection step; transaction may continue immediately after confirmation.
+C — High coercion | New recipient + high amount deviation + communication active + capture/control risk + elevated graph token. | Isolation Break: close risky access or end synchronous control path, short cooling interval, independent confirmation; optionally Safety Circle/bank step-up.
+D — Graph unavailable | Edge risk elevated, network/graph timeout. | No silent downgrade. Local policy uses risk-with-missing-evidence state; medium/high local risk still triggers proportionate friction.
+E — Accessibility | Verified accessibility service present and excluded by Play Integrity app-access-risk semantics. | Do not penalise solely for accessibility; use remaining evidence and accessible native UX.
+
+--- TABLE 12 ---
+Architectural invariant — No remote generative model is required to approve or block a payment. Generative agents may be used for simulation, analyst summaries or offline scenario generation, but the critical runtime path is small-model + deterministic-policy infrastructure.
+
+--- TABLE 13 ---
+Capability | Online mode | Graph/service unavailable
+Edge Risk-MoE | Runs locally. | Runs locally unchanged.
+Belief-state update | Uses local + signed graph token. | Uses local signals + explicit MISSING_GRAPH indicator.
+Beneficiary risk | Fresh institutional token. | Use unexpired cached token when policy allows; otherwise UNKNOWN, never assumed safe.
+Intervention policy | Local policy consumes full context. | Local policy consumes degraded context and may choose conservative low/medium friction.
+Safety Circle | Push/data channel. | Queue; optionally host-provided SMS/call fallback where legally/product-approved.
+Model updates | Download signed bundles. | Continue last-known-good bundle.
+Audit upload | Asynchronous. | Queue encrypted event summary until connectivity returns.
+
+--- TABLE 14 ---
+Fail-safe principle — Service failure must not become “risk = zero.” Missing evidence is represented explicitly and influences uncertainty. Conversely, missing graph data alone must not hard-block a legitimate payment.
+
+--- TABLE 15 ---
+Signal family | Example feature | Acquisition / note
+Host transaction | amount bucket, payee novelty, initiation mode, beneficiary age if known | Directly supplied by host app; highest-confidence source.
+Communication state | MODE_IN_CALL / MODE_IN_COMMUNICATION / communication-active boolean | Android AudioManager exposes telephony/communication modes; treat as coarse weak evidence, not proof of scam. [EXT; Ref. 10]
+Access risk | capturing / controlling / overlays verdict | Play Integrity appAccessRiskVerdict can report apps capable of capture/control/overlay without disclosing app identity. [EXT; Refs. 7–9]
+Device integrity | recognised app/device integrity tier | Optional Play Integrity risk input; never equate custom ROM with fraud by itself.
+User baseline | amount z-score / percentile, new beneficiary, burst velocity | Computed locally or host-provided; must have minimum-history fallback.
+Graph token | beneficiary risk, topology code, token age | Signed institution response; absent in offline/degraded mode.
+Interaction response | answered, timed-out, cancelled, resumed | Generated only after Vyuha intervention; becomes evidence and later training outcome.
+
+--- TABLE 16 ---
+Expert | Inputs | Output / purpose
+E1 Temporal Context | last N session events, time deltas, communication state | Sequence risk: is the current event ordering unusual or coercion-like?
+E2 Personal Baseline | amount percentile, payee novelty, velocity, time-of-day | User-relative anomaly; avoids one global threshold.
+E3 Device Access | capture/control/overlay + integrity flags | Remote-control or observation risk.
+E4 Transaction Novelty | new beneficiary, rail/mode, amount, recipient metadata | Transaction-specific novelty and loss magnitude.
+E5 Institutional Risk | signed graph token fields | Beneficiary/network prior when available.
+
+--- TABLE 17 ---
+[TARGET] Edge benchmark | Acceptance target
+Latency | p50 < 15 ms; p95 < 50 ms for local risk path on chosen mid-range Android test device.
+Model size | <= 12 MB compressed bundle for MVP; stretch <= 6 MB after quantization.
+Memory | <= 80 MB transient working set during protected transaction session.
+Idle cost | No continuous ML loop; event-driven activation only. Measure 24 h battery delta before making claim.
+Explainability | Every score includes activated experts and reason-code map.
+
+--- TABLE 18 ---
+State definition — At protected-session time t: b_t = P(C_t = coercion | observations_1:t, graph_risk, user_baseline, prior actions/responses). The implementation may use a compact learned state updater rather than solving a full POMDP online.
+
+--- TABLE 19 ---
+Component | Example
+Coercion probability | Calibrated probability or score bucket.
+Epistemic / OOD flag | Signals outside training support or incompatible feature patterns.
+Evidence vector | Local expert outputs + graph token + intervention response.
+Missing-data mask | Graph unavailable, integrity verdict unevaluated, insufficient baseline history.
+Time decay | Older weak evidence decays; immediate protected-session evidence dominates.
+Action history | Previous question/close-risk/cooling actions and user response.
+
+--- TABLE 20 ---
+Node type | Example features
+Account | age, KYC tier, inflow/outflow aggregates, dormancy/reactivation, risk history
+VPA | age, linked account count, merchant/person type, recurrence
+Device | device pseudonym, account fan-out, integrity history
+Phone | FRI/risk tier when institutionally permitted, account associations
+Merchant | MCC/category, merchant age, refund/dispute profile
+IP / network indicator | coarse ASN/risk bucket, account fan-out
+Complaint / fraud label | time, linked entities, disposition status
+
+--- TABLE 21 ---
+Layer | Prototype design
+Type encoders | Separate MLP embeddings for Account/VPA/Device/Phone/Merchant/IP/Complaint feature spaces.
+Temporal encoder | Relative time encoding plus recent-event memory; TGN/TGAT-inspired.
+Relation operator | HGT-style type/relation-specific attention or PyG HeteroConv with per-relation GraphSAGE/GAT.
+Fraud head | Beneficiary node risk, edge/transaction risk, and optional suspicious-cluster embedding.
+Calibration | Held-out temperature/isotonic calibration before emitting risk token.
+Explanation | Top relation codes / motif indicators, not a raw neighbor dump to the device.
+
+--- TABLE 22 ---
+MuleHunter positioning — RBI describes MuleHunter.ai as a supervised ML model for near-real-time mule-account identification. Vyuha should present its ST-GNN as complementary research architecture, not claim that MuleHunter itself is graph-based unless RBI/RBIH publishes that detail. [EXT; Ref. 5]
+
+--- TABLE 23 ---
+Model state | Required behavior
+Low risk + high confidence | PASS silently.
+Medium risk + high confidence | Select low-cost intervention that can reduce uncertainty.
+High risk + high confidence | Strong intervention / isolation break; host may invoke step-up control.
+Any risk + low confidence / OOD | ABSTAIN_AGGRESSIVE: do not infer “safe”; choose policy-defined conservative friction or institution fallback.
+Missing graph only | Do not escalate solely because graph is absent; preserve local evidence and missing mask.
+Conflicting signals | Prefer information-gathering action over irreversible action.
+
+--- TABLE 24 ---
+Action ID | Action | Cost / intended information
+A0 PASS | No friction | Zero cost; used only when risk/confidence policy permits.
+A1 MICRO | One short context question | Low cost; tests whether another person is directing payment.
+A2 REFLECT | Show recipient/amount + “why are you paying?” reflection | Moderate cost; breaks automatic compliance.
+A3 CLOSE_RISK | Require closure of capture/control risk before continuing | Moderate/high; platform-supported isolation from remote access.
+A4 COOL_OFF | 15–30 s intentional pause + safety statement | High information/cognitive break; scammer loses immediate momentum.
+A5 VERIFY | Safety Circle or bank step-up | High cost; independent human/institution verification.
+A6 CANCEL | User cancels / host blocks under policy | Terminal; not autonomously chosen by an unconstrained model.
+
+--- TABLE 25 ---
+Never do this — Do not tell judges the bandit “learns by trying different safety levels on live victims.” The production story is offline learning + constrained approved actions + measured rollout.
+
+--- TABLE 26 ---
+Agent | State / capability | Purpose
+Red Scammer Agent | authority persona, urgency, current channel, coaching strategy, adaptation memory | Changes tactics after warnings; attempts to preserve synchronous control and coach around friction.
+User Persona Agent | susceptibility, financial familiarity, stress, accessibility needs, trust network | Produces heterogeneous responses; prevents policy from overfitting to one “naive user.”
+Vyuha Defender | observations, belief state, action catalogue | Chooses interventions under cost/safety constraints.
+Environment / Bank | graph risk, transaction outcome, latency, service availability | Simulates institutional signals and consequences.
+Auditor Agent (offline) | policy trace, failure taxonomy | Searches for dangerous strategies, over-friction and reward hacking.
+
+--- TABLE 27 ---
+Research output — The digital twin produces adversarial training/evaluation trajectories, intervention-regret curves and a failure library. It is not evidence of real-world efficacy until validated with human studies or production data.
+
+--- TABLE 28 ---
+OODA phase | Runtime component | Input → output
+Observe | Context Collector | Host transaction + coarse device/session signals → typed EventSnapshot.
+Orient | Risk Fusion Agent | Risk-MoE + belief updater + graph token + uncertainty → RiskAssessment.
+Decide | Policy Agent | Assessment + policy version + safety constraints → InterventionDecision.
+Act | Host Action Adapter | Decision → native screen / close-risk remediation / cool-off / verification.
+Observe again | Response Collector | user response / timeout / host result → new event and belief update.
+Audit | Trace Agent | hashes, reason codes, versions, timings → local/queued audit envelope.
+
+--- TABLE 29 ---
+Risk tier | UI / action requirement | Design intent
+LOW | No Vyuha UI. | Protect conversion and habituation.
+ELEVATED | Micro-inquiry: “Is another person directing this payment right now?” + neutral continue/cancel. | Acquire evidence with minimal cost.
+MEDIUM | Reflection: show beneficiary + amount; require a short independent confirmation. | Break automatic compliance and re-anchor attention.
+HIGH_ACCESS | Use platform/host remediation to close apps capable of capture/control before continuing. | Remove remote-control observation/control surface where possible.
+HIGH_COERCION | Cooling interval + safety message + option for independent verification. | Break time pressure and synchronous coaching.
+CRITICAL / POLICY | Bank step-up, manual fraud verification or institution-defined hold. | Institutional enforcement, not unconstrained SDK action.
+
+--- TABLE 30 ---
+Requirement | Specification
+Enrollment | Opt-in; contact verified out-of-band; user chooses relationship label and disclosure level.
+Trigger | Only after policy decision + explicit user action, or institution-defined high-risk step-up where legally approved.
+Minimum disclosure | “<Name> requested safety verification for a high-risk payment.” No amount/payee by default.
+Expanded disclosure | Optional amount/payee only with prior consent and at time of escalation.
+Response | Confirm user is safe / request direct call / cannot verify. Contact cannot directly authorise the transaction.
+Abuse protection | Rate limits, contact revoke, device re-verification, session nonce, no persistent public link.
+No contact configured | Offer bank fraud support / helpline pathway according to host policy.
+
+--- TABLE 31 ---
+Safety principle — A Safety Circle member receives enough information to help break isolation, not enough information to become a second surveillance channel.
+
+--- TABLE 32 ---
+Interface | Purpose / payload
+Vyuha.initialize(config) | Loads signed model/policy bundle, keystore material, feature flags and host callbacks.
+startSession(TransactionContext) | Creates nonce-bound state before authorization UI. TransactionContext includes amount, currency, payee pseudonymous ID, rail/mode, payee-new flag and optional host risk fields.
+observe(EventSnapshot) | Adds coarse communication/device/access/interaction event; validates timestamp/order.
+assess() -> RiskAssessment | Runs local gate/experts, belief update, calibration and optional graph-token fusion.
+decide(RiskAssessment) -> InterventionDecision | Applies local frozen policy + host constraints.
+recordResponse(UserResponse) | Feeds action outcome back into the current belief state.
+complete(Outcome) | Finalises trace; queues privacy-minimal audit/outcome envelope.
+updateBundle(SignedManifest) | Atomic verified model/config update with rollback to last-known-good.
+
+--- TABLE 33 ---
+Endpoint / event | Contract
+POST /v1/beneficiary-risk | Input: institution-resolved beneficiary ID, session nonce, coarse transaction context. Output: signed RiskToken.
+POST /v1/outcomes | Asynchronous structured outcome: action, cancellation/continue, confirmed fraud label when later available, no raw screen/call content.
+GET /v1/model-manifest | Version metadata, compatibility, calibration/policy hashes; actual bundles distributed through signed channel.
+GraphEvent ingest | Typed event-time edge for payments, device/account association, complaint link, phone risk tier, merchant relation, etc.
+RiskToken verify | Edge checks issuer key, beneficiary binding, session nonce, issued/expiry times and signature before fusion.
+
+--- TABLE 34 ---
+Security boundary — The handset should not receive raw neighbor identities or a complete mule graph. Its job is to consume a risk token, not become a portable intelligence database.
+
+--- TABLE 35 ---
+Control | PRD requirement
+Data inventory | Maintain field-level catalogue: source, purpose, retention, local/remote, personal-data classification by institution counsel.
+Notice / transparency | Host supplies user-facing notice consistent with actual processing and jurisdictional requirements.
+Purpose limitation | Fraud-prevention telemetry may not silently become marketing/personality profiling input.
+Security safeguards | Encrypted transport, platform keystore, signed bundles/tokens, least-privilege services, role-based analyst access.
+Retention | Raw/high-granularity events retained only for policy-defined minimum; aggregate model metrics may use longer de-identified retention.
+Rights / operations | Expose host hooks for correction/deletion/access workflows where applicable; preserve legally required fraud/audit records under counsel-approved policy.
+Third parties | Safety Circle and telecom/institution data integrations require explicit contracts and scoped disclosure.
+
+--- TABLE 36 ---
+Attack / failure | Impact | Control
+Scammer coaches user to dismiss warning | Direct yes/no question fails. | Use sequence evidence, randomized policy-approved copy variants, isolation break and independent verification.
+Replay of old safe graph token | High-risk beneficiary appears safe. | Nonce + beneficiary binding + short TTL + issuer signature.
+Model/config tampering | Risk lowered locally. | Signed bundle, hash verification, Play integrity/app recognition, rollback protection.
+Adversarial graph camouflage | Mule ring embeds in benign neighborhood. | Relation-aware temporal model, robustness tests, motif features, CARE-GNN-inspired neighbor selection research.
+Graph poisoning / bad labels | System learns wrong topology. | Provenance, delayed-label states, analyst approval, outlier monitors, retraining gates.
+DoS / graph timeout | Risk service unavailable. | Offline-first local policy; explicit missing mask; bounded timeouts.
+Accessibility false positive | Legitimate assistive tech blocked. | Use platform verdict semantics; verified accessibility services excluded by Play Integrity; accessibility regression tests.
+Safety Circle abuse | Sensitive disclosure / harassment. | Opt-in verification, minimal content, rate limits, revoke/reset.
+Insider analyst misuse | Privacy breach. | RBAC, immutable audit, pseudonymisation, purpose-bound dashboards.
+
+--- TABLE 37 ---
+Dataset | Purpose | Leakage / ethics control
+Synthetic coercion trajectories | Train/test local sequence + policy simulation. | Separate prompt/scenario families across train/test; do not call synthetic accuracy “real-world fraud recall.”
+Synthetic temporal mule graph | Demonstrate hetero ST-GNN and topology behaviour. | Generate time-respecting account/VPA/device relations; hold out entire rings/new nodes.
+Public graph-fraud datasets (optional) | Architecture sanity-check. | Document domain mismatch to Indian UPI; no misleading transfer claim.
+Institution outcomes (future) | Calibration and production evaluation. | Governance approval, label delay handling, train/test chronological split, privacy controls.
+
+--- TABLE 38 ---
+Layer | Primary metrics | Proposed acceptance target / interpretation
+Edge classifier | PR-AUC, recall@FPR, calibration, OOD/abstention | Report measured values; no universal target until synthetic baseline is known.
+Benign UX | additional-friction rate, high-friction rate | [TARGET] <0.5% any added friction and <0.05% high friction in benign evaluation set; aspirational, not claimed.
+ST-GNN | node/edge PR-AUC, recall, time-split generalisation, camouflage robustness | Compare to logistic/XGBoost + GraphSAGE/TGAT baselines.
+Latency | local p50/p95, graph RTT, end-to-end | [TARGET] local p95 <50 ms; graph service budget <120 ms p95 where online; graph timeout bounded.
+Resource | bundle MB, RAM, CPU duty, battery delta | Measure on at least one mid-range Android device; publish device/model details.
+Policy | prevented-loss proxy, friction cost, regret vs baseline | Offline digital-twin + replay only until controlled pilot.
+Human factors | comprehension, cancel/verify behavior, accessibility | Small supervised usability study or demo-script task; no efficacy generalisation.
+
+--- TABLE 39 ---
+Telemetry class | Examples | Privacy rule
+Performance | inference_ms, graph_rtt_ms, action_render_ms, bundle_load_ms | No user identity needed; aggregate where possible.
+Decision | risk tier, reason codes, action ID, abstain flag, model/policy versions | Pseudonymous session ID; no raw content.
+Reliability | graph timeout, token verify failure, model load failure, integrity unevaluated | Operational diagnosis only.
+Outcome | cancelled/continued, later fraud label if institution supplies | Strict retention and governance; separate immediate user response from confirmed fraud.
+
+--- TABLE 40 ---
+Owner | 0–6 h | 6–14 h | 14–20 h | 20–24 h
+AI/ML + backend | Generate synthetic hetero graph; train baseline ST-GNN; graph API. | Integrate Risk-MoE/belief; token contract. | Bandit policy + replay; benchmark. | Stabilise, metrics, jury technical notes.
+UI/UX + frontend | Host payment simulator; normal/high-risk flows. | Native friction screens; Safety Circle screens. | Polish interaction, accessibility, animations. | Demo rehearsal, visual cleanup.
+HCI / product | Copy library, coercion journey, action catalogue, usability test plan. | Integrate reason codes + cooling flow. | Run user-flow tests; failure cases. | Presentation/Q&A; judge walkthrough.
+Data / features | Synthetic event schema, graph generator, labels, splits. | Feature pipeline + evaluation harness. | Metrics dashboard; adversarial cases. | Evidence table and reproducibility package.
+
+--- TABLE 41 ---
+Demo rule — Do not spend finale time building every roadmap feature. Win with one end-to-end path in which every deep-tech component actually changes the decision.
+
+--- TABLE 42 ---
+Phase | Scope | Exit criterion
+P0 — Hackathon | Android host simulator, local experts/belief, synthetic hetero ST-GNN service, constrained policy, Safety Circle mock, metrics. | Two reproducible flows + source + architecture trace.
+P1 — Lab pilot | Real Android integrity verdicts, signed bundles/tokens, institution-like backend, replay suite, usability study. | Measured latency/calibration/friction; threat-model review.
+P2 — Institutional sandbox | Bank/PSP integration, real transaction features under governance, shadow scoring, analyst dashboard. | No user enforcement; validated drift/false-positive envelope.
+P3 — Controlled production | Small cohort, conservative intervention, bank step-up integration, incident process. | Safety/UX SLOs + governance sign-off.
+P4 — Federation / telecom | FRI/telecom signal enrichment, cross-institution model research, privacy-preserving update exchange. | Regulatory/contracts + anti-poisoning architecture.
+
+--- TABLE 43 ---
+Criterion | How Vyuha answers it
+Innovation — 25 | Agency Integrity category; active-sensing friction; belief state; hetero temporal graph; offline adversarial policy training.
+Impact — 25 | Targets authorised coercion before payment while complementing FRI/mule controls; user + bank value.
+Feasibility — 20 | Native host integration; Android-supported access-risk signals; local runtime; institutional graph placement; explicit degradation.
+Prototype — 20 | Measured local inference + real graph service + adaptive intervention + trace, not slideware.
+Presentation — 10 | One simple human story backed by a visible technical trace; every claim tagged as measured/target/research.
+
+--- TABLE 44 ---
+Judge-ready differentiation — Most fraud systems ask whether the transaction or recipient is suspicious. Vyuha fuses that with the payer’s current agency context and actively breaks the attacker’s control loop before authorization. The technical novelty is the fusion and decision policy, not any single algorithm in isolation.
+
+--- TABLE 45 ---
+Evidence boundary — Research references justify design choices and platform feasibility; they do not establish that Vyuha has already achieved the proposed latency, recall, false-positive or fraud-prevention outcomes. Those claims require the evaluation program defined on pages 25–27.

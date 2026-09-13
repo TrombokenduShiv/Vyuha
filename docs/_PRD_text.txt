@@ -1,0 +1,1165 @@
+VYUHA 2.0
+TECHNICAL REQUIREMENTS DOCUMENT (TRD)
+Engineering Architecture + 24-Hour Implementation Playbook
+Agency Integrity Layer for Coercion-Driven Digital Payment Fraud
+
+Team: The Syndicates
+Competition: ByteBuilt 1.0 — AI for Business / Fraud & Risk Detection
+Document status: Implementation baseline v1.0
+Primary source: Vyuha 2.0 30-Page PRD + attached ByteBuilt materials
+
+Trombokendu Chakraborty — Team Leader • Core Deep-Tech / ML Systems
+Aditya Kumar — SDK Packaging • Low-Latency Edge Systems
+Alaukik Saxena — Human-Computer Interaction • Safety Interaction Design
+Sneha Sinha — Warning Layer • Dynamic Frontend / Presentation
+
+“Authentication protects identity. Vyuha protects intent.”
+
+1. Document Control, Engineering Scope and Non-Negotiables
+This TRD operationalizes the Vyuha 2.0 PRD into buildable modules, exact interfaces, ownership boundaries, test gates and a time-boxed hackathon execution plan. It is intentionally more implementation-oriented than the PRD: every deep-tech component is mapped to code, data, model artifacts, API contracts, fallback behavior, owner and acceptance test. The PRD remains the product-source-of-truth; this document is the engineering-source-of-truth for how the prototype is assembled.
+
+1.1 Engineering invariants
+Core edge inference shall work with network disabled after model/config bootstrap. Missing remote evidence is represented as MISSING/UNEVALUATED, never coerced to “safe.”
+The SDK shall never ingest call audio, screen pixels, private chat text, UPI PIN, OTP, raw contact book or arbitrary app content for the MVP.
+The graph service shall return only a short-lived signed beneficiary-risk assertion, not raw neighbor identities or a portable mule graph.
+Intervention severity shall be determined by fused evidence plus uncertainty. A single weak signal such as an active call cannot independently produce a high-severity decision.
+Any warning/action visible to the user must be reproducible from a stable action ID, reason codes, model version and policy version.
+Production architecture and hackathon shortcuts must be labelled separately. A simulated signal is acceptable for demo only when the platform capability cannot be provisioned in 24 hours.
+
+1.2 Source and research basis
+This TRD inherits the PRD research basis: Heterogeneous Graph Transformer (HGT), Temporal Graph Networks (TGN), TGAT, CARE-GNN, sparse Mixture-of-Experts, POMDP-style belief-state reasoning, conformal prediction, conservative contextual bandits, offline RL and federated learning research. It also follows current Android platform constraints: Play Integrity app-access-risk can identify capture/control/overlay capability but is a server-verified signal and can add hundreds of milliseconds; therefore it is treated as asynchronous augmentation rather than the sub-50 ms local critical path. ExecuTorch provides Android AAR/Kotlin-Java bindings and an XNNPACK backend suitable for a quantized local model bundle. [R7–R10, R19–R28]
+
+2. Team Topology, Ownership and Detailed Role Assignment
+The four-person team is deliberately organized around dependency boundaries. Trombokendu owns model correctness and the cross-module decision contract. Aditya owns whether that decision can be packaged, loaded and executed locally under a measurable latency budget. Alaukik owns whether interventions are behaviorally defensible, comprehensible and safe. Sneha owns whether those intervention states are dynamically rendered, instrumented and presentation-ready. Integration succeeds only when the shared schemas are frozen early and each owner delivers an independently testable artifact.
+
+2.1 Trombokendu — exact deliverables
+Own `/ml`, `/services/graph-risk`, `/simulation`, and the canonical feature/model schemas. No other teammate changes model input order, action IDs or risk-token fields without his approval.
+Create deterministic synthetic coercion trajectories and a temporal heterogeneous fraud graph with labelled mule motifs, hard negatives, timestamped relationships and a chronological train/validation/test split.
+Implement and train the local Sparse Risk-MoE. Export a single fixed-shape `.pte` edge bundle plus `feature_schema.json`, `calibration.json`, `policy.json` and SHA-256 hashes.
+Implement the belief-state update and conformal/selective uncertainty wrapper. Publish golden input/output vectors so Aditya can validate Android parity.
+Implement the institution-side heterogeneous ST-GNN baseline and graph-risk API. Create at least one visible suspicious topology whose score materially changes the integrated decision.
+Implement offline safe contextual-policy training and/or a frozen contextual bandit baseline. No runtime exploration. Publish allowed action set by risk tier.
+Own integration debug trace: expert scores, router weights, local probability, graph probability, belief state, uncertainty/abstain state, selected action and versions.
+Lead all integration gates and technical Q&A. If another component blocks the critical path, he chooses the simplest scientifically defensible fallback.
+2.2 Aditya — exact deliverables
+Own `/sdk/android`, `/apps/android-host`, low-level performance utilities and packaging. The SDK must be consumed as an AAR by the demo host by the final integration gate.
+Define public Kotlin API surface, session lifecycle, coroutine/executor boundaries, error enums and callback contracts. Keep model/runtime internals private.
+Integrate ExecuTorch Android AAR; preload and warm the model; map Kotlin features into fixed tensors without JSON or heap-heavy transformations on the hot path.
+Implement local feature extraction adapters: transaction context, AudioManager communication mode, host-provided device/access-risk assertions, local baseline cache and graph token cache.
+Implement JWS/ES256 risk-token verification with pinned public key, beneficiary/session binding, `iat/exp`, token age and signature validation.
+Implement offline/degraded behavior, last-known-good signed bundle activation, atomic config load and safe default action on model/runtime failure.
+Create benchmark harness: cold load, warm inference p50/p95, memory footprint, AAR size, session-start overhead and full `assess()+decide()` latency. Target local p95 <50 ms only after measurement.
+Own `assembleDebug`, `publishToMavenLocal`, device install, final APK/AAR hashes and runbook so the demo works without an IDE.
+2.3 Alaukik — exact deliverables
+Own the intervention catalogue and HCI specification rather than model code. Every action must have intent, trigger envelope, copy constraints, required affordances, user exits and failure behavior.
+Define the five primary intervention levels: PASS, MICRO_INQUIRY, REFLECTION, ISOLATION_BREAK, TRUSTED_VERIFY/ESCALATE. Specify when the user can continue immediately and when risky access must first be remediated.
+Design Isolation Break as channel disruption, not merely a warning. The user should receive a calm explanation, a short cooldown and an independent choice after synchronous attacker influence is interrupted.
+Design Safety Circle with consent, minimal disclosure and fallback to bank fraud support. Avoid assuming family is always the safe contact.
+Write response semantics consumed by the model: `CONFIRM_SAFE`, `SOMEONE_DIRECTING`, `TIMEOUT`, `CANCEL`, `RISK_REMEDIATED`, `TRUSTED_VERIFIED`, `CONTINUE_AFTER_COOLDOWN`.
+Build accessibility checklist: large touch targets, TalkBack content descriptions, non-color-only risk cues, motion-reduced path, simple language and no shaming.
+Define HCI metrics: completion time, warning comprehension, dwell time, cancellation rate in scam scenarios, unnecessary-friction rate in benign scenarios, and accessibility failure count.
+Co-own bandit reward constraints with Trombokendu: friction cost values and prohibited action/context combinations are human-safety constraints, not parameters the RL system may learn away.
+2.4 Sneha — exact deliverables
+Own warning-state rendering. Preferred hackathon path: Jetpack Compose screens inside the Android host. Secondary web strength is used for the engineering/dashboard view in React + TypeScript if time permits.
+Implement `WarningSpec`-driven UI: the policy returns an action ID and reason codes; the presentation layer maps them to constrained copy and component states. Model code must never return arbitrary generated text.
+Create stateful transitions for micro-inquiry, reflection, isolation-break cooldown, remediation confirmation, trusted verification and resolution. Every state must have loading/offline/error variants.
+Build an internal judge/debug panel showing risk timeline and graph motif without exposing this technical detail in the end-user warning view.
+Instrument UI events through one typed callback (`WarningEvent`) so Alaukik’s HCI metrics and Trombokendu’s belief update receive consistent response semantics.
+Maintain visual hierarchy and panic-reducing interaction: neutral language, one primary action, one clearly-labelled safe exit, no flashing red “fraud” screen except where institution policy requires it.
+Create demo operator controls that can switch between BENIGN, AMBIGUOUS and HIGH_COERCION scenarios. Simulator-only controls must be hidden from user-facing mode.
+Own final visual rehearsal: no dead buttons, no loading spinner dependence on internet, no broken responsive layout, and predictable transitions for screen recording/presentation.
+2.5 RACI matrix
+
+
+
+3. Technology Stack and Versioning Strategy
+The stack is selected to maximize prototype credibility without making the team dependent on services that cannot be provisioned during a 24-hour finale. Production choices are shown separately from hackathon shortcuts. The runtime critical path is Android + local model; the graph service and training stack are Python; warning presentation is native Compose with an optional React engineering dashboard.
+
+3.1 Repository layout — freeze this before coding
+Canonical monorepo tree
+
+3.2 Versioning rules
+Commit a Gradle wrapper, Python lockfile (`uv.lock`/`requirements-lock.txt`) and frontend lockfile. No teammate installs “whatever latest” after the first 90 minutes.
+Use JDK 17. Pin the Android compile/target SDK to the stable version installed on the hackathon machine; keep `minSdk` at 26 unless a dependency forces higher. Play Integrity app-access-risk itself requires Android 6/API 23+, but the demo app does not depend on a live verdict.
+Use ExecuTorch stable release from Maven Central for Android; avoid nightly snapshots during the finale. Current stable documentation exposes `org.pytorch:executorch-android` AAR with JNI runtime and XNNPACK. [R27]
+Use Python 3.11 for widest PyTorch/PyG compatibility; freeze versions immediately after `pip install` succeeds on the actual machine.
+Use Node.js LTS and `npm` or `pnpm`, not both. If the optional dashboard is cut, no core capability is lost.
+3.3 Environment bootstrap commands
+Hackathon bootstrap
+
+
+4. Runtime Architecture and Trust Boundaries
+
+Figure 1. Three-plane Vyuha architecture. Only Plane A is required for the offline critical path.
+Plane A is the only component that must participate in the sub-50 ms local decision budget. Plane B can enrich risk with beneficiary-network evidence. Plane C trains and validates policy offline; it does not execute unrestricted learning on a live victim. The product must continue to function when Plane B is unavailable.
+4.1 Runtime sequence
+
+Figure 2. Local-first runtime decision flow with optional graph augmentation.
+Host creates a `TransactionContext` before the user reaches final payment authorization and calls `startSession()`.
+SDK captures bounded local features: transaction novelty, local baseline, communication state and any host/device-risk assertions already available.
+Triage gate checks for clearly benign context. If safe-path criteria are met, the SDK emits PASS without user-visible UI.
+Otherwise the Sparse Risk-MoE scores the session. The coercion belief state accumulates sequential evidence rather than treating one event as conclusive.
+In parallel, the host/backend requests beneficiary risk. A valid signed `GraphRiskToken` is fused if it arrives before the decision deadline; otherwise graph state is UNKNOWN and the local path proceeds.
+Conformal/selective uncertainty determines whether the model is confident enough for a stronger action or should abstain / use lower-cost friction.
+Frozen policy selects one pre-approved action. The host UI renders it natively. Response events are returned to the current session and may trigger a second belief update.
+Outcome is finalized, persisted locally as a privacy-minimal trace, and asynchronously uploaded if permitted.
+4.2 Latency budget
+
+
+4.3 Production vs hackathon implementation
+
+
+5. Canonical Interfaces and Data Contracts
+The first integration milestone is not model training; it is schema freeze. All four teammates code against the contracts below. Trombokendu is accountable for semantic correctness; Aditya mirrors the same fields as Kotlin data classes; Sneha/Alaukik consume only action/reason contracts, never model internals.
+5.1 Public Android SDK API
+Kotlin contract sketch — public API only
+
+5.2 EventSnapshot
+
+5.3 GraphRiskToken — signed assertion
+Graph risk token payload
+
+5.4 RiskAssessment and InterventionDecision
+
+5.5 Action IDs — immutable across UI and policy
+
+
+6. Edge SDK Implementation — Aditya Ownership
+6.1 Gradle module boundaries
+
+6.2 SDK packaging sequence
+Create the five Android library modules and keep the demo host separate. Confirm `./gradlew :sdk:android:vyuha-api:assembleDebug` before any inference work.
+Implement DTOs/enums exactly from `shared/contracts`. Generate/duplicate Kotlin classes once, then lock schema via unit tests that compare fixture JSON keys.
+Implement a fake inference adapter returning deterministic risk. This unblocks UI/HCI immediately while Trombokendu trains the real model.
+Implement `SessionRegistry` keyed by a cryptographically random session ID and caller-supplied nonce. Session contains bounded event ring buffer (for example last 8 snapshots), no unbounded telemetry history.
+Integrate ExecuTorch stable AAR. Load `.pte` from `assets/vyuha/edge_model.pte`. Warm once on a synthetic zero tensor at initialization.
+Replace fake inference with `EdgeModelRunner`. Verify Android output against Trombokendu’s golden vectors within agreed tolerance.
+Implement graph-token verification. Invalid/expired/mismatched token becomes `GRAPH_INVALID`, not a crash or silent PASS.
+Add observability timers around feature packing, model run, belief update and policy. Store only last N debug traces in memory for demo.
+Publish the SDK to `mavenLocal()` and change the host app to consume the AAR artifact rather than direct project classes. This is the packaging proof.
+Run device benchmarks and write results to `artifacts/benchmarks/<device>.json` with device model, Android version, build hash and model hash.
+6.3 Hot-path low-latency rules
+Preallocate float/int buffers for the fixed feature vector and temporal event tensor. Reuse them per session; do not create maps or JSON during inference.
+Normalize features using constants from `normalization.json` loaded once. Missing values have explicit missing-mask bits rather than NaN.
+Model load occurs at SDK initialization or payment-screen entry, never after PIN/authorization button press.
+Keep the local tensor shapes fixed. Example: static features `[1, 32]`, temporal events `[1, 8, 16]`, graph augmentation `[1, 8]` with `graph_missing=1` when absent.
+Use a dedicated background dispatcher/executor for inference; UI thread only awaits the result and renders. Cancel stale session work when session closes.
+Profile before adding C++. If feature packing + orchestration is <5 ms, remain in Kotlin. Add NDK complexity only if measurement shows a real bottleneck.
+Log p50/p95 after at least 100 warm runs; do not use one successful run as the latency claim.
+6.4 ExecuTorch integration
+Android inference integration sketch
+
+ExecuTorch’s Android distribution includes Java/Kotlin-facing APIs and JNI/native runtime with XNNPACK and quantized kernels. For the finale, use Maven Central rather than building ExecuTorch itself. [R27]
+6.5 Offline/degraded mode state table
+
+
+7. Sparse Risk-MoE Triage Gate — Trombokendu Ownership
+The local model must justify the “Mixture of Experts” label technically. The implementation below uses a small sparse router that activates at most two experts for an elevated session. The fast gate can exit before expert execution for obvious benign traffic. The objective is not a gigantic MoE; it is conditional computation and interpretable expert separation under a mobile latency budget.
+7.1 Feature tensor
+
+7.2 Expert architecture
+
+7.3 Training procedure
+Generate a session dataset with scenario-family separation: benign routine payments, benign edge cases (new payee while on a call), ambiguous sessions and coercion-like sequences. Keep full scenario templates out of the validation/test split to reduce leakage.
+Normalize continuous features on train split only. Persist means/scales and categorical mapping in the model bundle.
+Train the experts + router end-to-end with binary cross-entropy and a small router load-balancing penalty so one expert does not absorb all traffic. Use class weighting/focal loss only if imbalance demands it.
+Calibrate the fused probability on a chronological/held-out calibration set. Do not tune thresholds on the final test set.
+Add expert ablations: device-only, transaction-only, baseline-only, temporal-only, full model. The demo can show that combined evidence matters.
+Export a fixed-shape model using `torch.export`, lower with ExecuTorch XNNPACK and write `.pte`. Verify Python vs ExecuTorch output on golden vectors.
+Quantize only after parity works. Compare float and quantized accuracy/calibration; retain float if quantization breaks the tiny model and still meets latency.
+Package the `.pte` plus feature/calibration metadata and SHA-256. Aditya consumes only the bundle, never Python preprocessing code.
+7.4 Fast-path rule
+Fast-path pseudocode
+
+
+
+8. Coercion Belief State and Selective Uncertainty
+Vyuha’s technical differentiation comes from treating coercion as a latent state that evolves across events. The phone does not “see coercion”; it sees weak contextual observations. The runtime therefore maintains a belief proxy and updates it as evidence accumulates. This is inspired by partially observable decision systems, but the hackathon implementation should remain small, transparent and testable.
+8.1 Belief state implementation
+Use a three-state conceptual model: AUTONOMOUS, UNCERTAIN and COERCED. For the prototype, maintain a scalar `b_t = P(coercion | observations)` using a recurrent log-odds update. Initialize weights from synthetic data and fit a logistic/recurrent calibration model rather than hand-tuning every coefficient.
+Belief-state recurrence
+
+8.2 Starter action envelopes — engineering defaults, not final policy
+
+8.3 Conformal/selective prediction wrapper
+Split a held-out calibration set after model training. Keep it separate from threshold tuning.
+For binary classification, compute nonconformity `s = 1 - p_true` on the calibration examples.
+Choose desired miscoverage α (for example 0.10 for prototype experimentation) and compute the finite-sample conformal quantile `q_hat`.
+At runtime, form a prediction set containing class `c` when `1 - p_c <= q_hat`. `{SAFE}` is confident-safe, `{RISK}` is confident-risk, `{SAFE,RISK}` is ambiguous/abstain.
+Feed prediction-set size and route entropy into the policy. Ambiguity should reduce confidence in aggressive action unless strong non-model evidence independently requires remediation.
+Report empirical coverage on calibration/test data. Do not claim distribution-free protection against arbitrary future distribution shift; monitor drift.
+
+9. Heterogeneous Spatio-Temporal GNN — Trombokendu Ownership
+
+Figure 3. Heterogeneous temporal graph schema. “Spatial” refers to relational graph structure, not geographic coordinates.
+The institution-side model answers a different question from the edge model: “Does the beneficiary participate in a suspicious evolving network topology?” The edge model estimates payer-side agency context; the ST-GNN estimates recipient/network risk. The fused system is stronger because either side can be low while the other is high.
+9.1 Graph schema
+
+
+9.2 Synthetic mule motif generator
+Generate normal users with stable payee/merchant behavior, salary-like inflow and routine merchant payments.
+Inject fan-in mule motif: many unrelated accounts send moderate amounts to one young account within a short interval.
+Inject fan-out dispersal: one mule quickly sends funds to several downstream accounts.
+Inject chain laundering: A→B→C→D with short time gaps and reduced amounts.
+Inject device reuse: multiple nominally unrelated accounts appear on the same device within a compressed period.
+Inject VPA churn: several young VPAs map to related accounts, then become dormant.
+Inject delayed complaint nodes after suspicious transfer clusters, preserving realistic label delay.
+Add camouflage edges to normal merchants and benign high-degree hubs so the model cannot equate degree with fraud.
+Create hard negatives such as family transfers, rent collection and legitimate merchant fan-in.
+Chronologically split data and hold out complete mule clusters from test so performance requires inductive generalization, not memorized node IDs.
+9.3 Recommended model — HSTGNN-v1
+
+9.4 24-hour fallback model
+If a full TGN-memory + HGT implementation is unstable by hour 8, do not fake it. Use a time-windowed heterogeneous snapshot: engineer temporal aggregates (count/velocity/recency) into node features, then run HGTConv. Call this the hackathon approximation to the production ST-GNN and state that temporal memory is a roadmap step. A working, measured hetero graph model is stronger than a broken “TGN+HGT” diagram.
+9.5 Training configuration — starting point
+
+
+10. Graph Risk Service and Signed Risk Token
+10.1 FastAPI service structure
+Graph service layout and request
+
+10.2 Service flow
+Validate request schema and max body size. Reject raw PII fields not part of the contract.
+Look up beneficiary node in the loaded graph. If unseen, construct an inductive representation from known relations/features or return an explicit unseen-node uncertainty state.
+Run HSTGNN model once. Extract risk probability, uncertainty and topology reason codes derived from graph motifs/feature attribution rules.
+Create a short-lived token (`exp` roughly 60–120 seconds in demo) bound to beneficiary hash and session nonce.
+Sign using ES256 private key. Never ship the private key into the Android app. Return compact JWS.
+Log service latency and model version. For prototype, do not persist raw request beyond structured local logs.
+Aditya’s SDK verifies the token before fusion. Invalid token can never increase confidence in safety.
+10.3 Integration test vectors
+
+
+11. Safety-Constrained Contextual Bandit, Offline RL and Agentic Digital Twin
+The policy layer chooses friction, not “fraud truth.” This distinction is essential. The classifier estimates risk; the policy balances expected safety benefit against friction cost under hard safety constraints. Runtime learning is disabled. Exploration occurs only in synthetic/offline simulation.
+11.1 Policy context vector
+
+11.2 Hard action constraints
+
+11.3 Frozen contextual bandit baseline
+Implement a per-action linear reward model or LinUCB-style scoring offline. At runtime, set exploration coefficient to zero and use the frozen coefficients plus hard constraints. This preserves contextual adaptation without unsafe live exploration.
+Policy objective
+
+11.4 Multi-agent Scam Digital Twin
+
+The “agentic” value is therefore real but safely placed: multi-agent adversarial simulation generates policy trajectories and failure cases offline. The production payment decision remains a deterministic local ML/policy pipeline.
+
+12. HCI Requirements and Warning Layer — Alaukik + Sneha
+12.1 Warning state machine
+
+12.2 Copy constraints
+Never say “You are being scammed” solely from model output. Prefer “This payment has signals commonly associated with guided or remote-controlled payments.”
+Never shame: avoid “You should have known” or age-targeted messaging.
+Explain action, not model internals: “End screen control before continuing” is better than “ST-GNN probability 0.87.”
+Do not reveal exact thresholds or all signals in production copy; attackers should not receive a deterministic bypass script.
+For high risk, reduce urgency. Short cooldown text should explain that legitimate banks/police do not require a transfer while maintaining another person’s control of the session.
+All action copy comes from approved local resources keyed by `uiSpecId`; no generative LLM copy on the payment path.
+12.3 WarningSpec contract
+Presentation contract
+
+12.4 Isolation Break protocol
+Policy emits A3 with reason codes and optional `requiresRiskRemediation=true`.
+UI explains the safety action before asking for any answer that the scammer could coach.
+If a platform/host risk assertion indicates capture/control, host requests approved remediation. Production may use Play Integrity remediation dialogs when available; hackathon simulates closure and updates the fixture.
+Cooldown begins only after risky access is remediated or the user explicitly leaves the synchronous instruction channel in the simulator.
+During cooldown, do not show transaction-confirmation controls. Show one calm safety fact and a cancel option.
+After cooldown, re-assess with `RISK_REMEDIATED` event. Policy either downgrades to reflection/continue, escalates to trusted verify, or defers to host step-up.
+Log dwell time and action outcome for HCI analysis; do not log screen contents or sensitive transaction text.
+12.5 Accessibility acceptance tests
+
+
+13. Security, Privacy and Abuse Resistance
+13.1 Data minimization matrix
+
+13.2 Threat-model test cases
+
+
+14. Exact Build Sequence — Contracts First, Vertical Slice Before Polish
+The implementation order below is dependency-driven. The team should resist starting four independent “cool modules” that cannot connect. The first end-to-end vertical slice uses fake model outputs, then each fake component is replaced one by one while the interface remains constant.
+Step 0 — Repository + branch policy
+Create monorepo, commit contracts/README, protect `main` by social rule: no direct breaking schema edits. Use feature branches `trombo/ml-*`, `aditya/sdk-*`, `alaukik/hci-*`, `sneha/ui-*`. Merge only at integration gates.
+Step 1 — Freeze six contracts
+TransactionContext, EventSnapshot, GraphRiskToken claims, RiskAssessment, InterventionDecision, WarningEvent. Export JSON fixtures and Kotlin/Pydantic copies.
+Step 2 — Build a fake vertical slice
+Android host opens a payment, fake SDK returns A3, warning UI runs cooldown, fake Safety Circle completes. This proves interface/UI flow before deep tech.
+Step 3 — Build graph service with deterministic heuristic
+Before ST-GNN trains, `/beneficiary-risk` returns fixture risk by beneficiary ID and signs token. Aditya can build signature verification immediately.
+Step 4 — Build synthetic data generators
+Trombokendu generates session trajectories + hetero graph. Freeze seeds and export train/val/test manifests.
+Step 5 — Train ST-GNN baseline
+Start with HGT snapshot or GraphSAGE to prove data pipeline. Then add temporal memory/encoding if stable. Publish model + service tests.
+Step 6 — Train edge model
+Train Triage/Risk-MoE + calibration. Export golden vectors and `.pte`.
+Step 7 — Replace fake Android inference
+Aditya integrates `.pte`; verify Python/Android parity; preserve public SDK API unchanged.
+Step 8 — Implement belief + conformal + frozen policy
+Trombokendu wires local risk + graph risk + response to final action. Alaukik approves action envelope.
+Step 9 — Replace heuristic graph risk
+Load ST-GNN in FastAPI; risk token now comes from model inference.
+Step 10 — Harden warning flow
+Sneha implements all states/error paths; Alaukik runs HCI checklist. No dead-end action.
+Step 11 — Benchmarks + adversarial replay
+Aditya measures latency; Trombokendu runs model metrics; Alaukik/Sneha run benign/high-risk user flow; team fixes only failures that affect demo/criteria.
+Step 12 — Package and freeze
+Publish AAR locally, assemble APK, save exact model/config hashes, start services from one script, run final demo twice from clean restart.
+14.1 Integration gate checklist
+
+
+15. 24-Hour Hackathon Execution Plan — 15-Minute Resolution
+The ByteBuilt rulebook states that the hackathon officially begins at 10:30 AM. The following schedule assumes a 10:30 AM start and should be shifted if organisers change the start time. It is deliberately granular: every 15-minute slot has a primary activity per teammate and a hand-off or integration condition. Meal/briefing constraints should be adjusted on-site without changing gate order.
+
+Window 1: Hour 0–3
+
+
+Window 2: Hour 3–6
+
+
+Window 3: Hour 6–9
+
+
+Window 4: Hour 9–12
+
+
+Window 5: Hour 12–15
+
+
+Window 6: Hour 15–18
+
+
+Window 7: Hour 18–21
+
+
+Window 8: Hour 21–24
+
+
+16. Test, Benchmark and Acceptance Matrix
+16.1 Unit and contract tests
+
+16.2 End-to-end acceptance scenarios
+
+16.3 Performance benchmarks
+
+16.4 ML metrics
+
+
+17. Demo Choreography and Presentation-Grade Engineering Trace
+The demo should reveal deep technology only after the user story is obvious. A judge should first see a normal payment that is untouched, then a high-risk payment that changes state for specific reasons. The debug panel is the proof that the behavior comes from integrated models rather than a hard-coded warning.
+17.1 Benign demo — 30–45 seconds
+Open host payment screen with BENIGN_01 scenario.
+Payee is known; amount inside normal percentile; no active communication. Graph token low-risk or graph missing.
+Press “Continue to Pay.” SDK returns PASS. No warning renders.
+Open engineering trace only after payment: show local p95 benchmark, fastPath=true, model hash. Close it quickly.
+17.2 High-risk demo — 60–90 seconds
+Switch to SCAM_01: large new-beneficiary payment while communication active and a controlling/capture-risk fixture is active.
+Graph service receives beneficiary hash and returns a signed high-risk token because live synthetic graph shows fan-in/device-reuse motif.
+Engineering trace shows router selected Device + Transaction experts; belief increases after graph fusion; conformal state is confident-risk or policy has corroborating evidence.
+Policy selects A3_ISOLATION_BREAK. User-facing UI does not show probabilities; it asks the user to leave the risky access/control condition and pauses final authorization.
+After simulated remediation + cooldown, inject SOMEONE_DIRECTING or a high-risk response. Policy escalates to trusted verify.
+Cancel payment / complete Safety Circle verification. End with versions, measured latency and the graph motif visual.
+17.3 Judge questions — exact engineering answers
+
+
+18. Failure Triage and Debug Playbook
+
+18.1 Stop-the-line criteria
+If the real model is not stable by G3, keep a smaller defensible model; never hard-code the final warning while claiming ST-GNN/MoE causality.
+If app-access-risk cannot be provisioned, mark it SIMULATED and continue. Do not build a permission-abusive overlay/screen-scraper substitute.
+If full TGN+HGT training is unstable, fall back to HGT with temporal aggregates and explain the production temporal-memory direction.
+If the React dashboard threatens the Android vertical slice, cut it. The core demo is Android host + graph service + model trace.
+If the bandit adds nondeterminism to the final demo, freeze the selected policy seed/coefficients and test actions deterministically.
+
+19. Release Engineering, Reproducibility and Submission Artifacts
+
+19.1 One-command local start target
+Demo startup target
+
+19.2 Git discipline
+Commit after every integration gate with tag `gate-g0`, `gate-g1`, etc. If G5 breaks, return to the last green tag rather than debugging until the demo dies.
+Do not commit private signing keys to a public repository. For the demo, generate development keys at setup and keep them in ignored `secrets/`; publish only the public key fixture if needed.
+Include `SEED` values for every synthetic generator and training run. A judge should be able to reproduce the showcased graph/model within practical limits.
+Keep a `MODEL_CARD.md` and `DATA_CARD.md` stating that evaluation data is synthetic and what the model does not prove.
+
+20. Technical Acceptance Criteria and Requirement Traceability
+
+20.1 Definition of “done” for the finale
+
+
+21. Research and Engineering References
+[R1] Vyuha 2.0 — 30-Page Product Requirements Document + Technical Architecture Specification, team source document.
+[R2] ByteBuilt 1.0 Rule Book, attached competition document: themes, judging weights, submission requirements and 24-hour rules.
+[R3] The Syndicates — Vyuha Pitch Deck (ByteBuilt 1.0), attached.
+[R4] ByteBuilts 1.0 Script — Vyuha, attached.
+[R5] Reserve Bank of India, Annual Report 2024–25, MuleHunter.ai section.
+[R6] NPCI, UPI Frequently Asked Questions — TPAP/sponsor-bank and UPI ecosystem context.
+[R7] Android Developers, Play Integrity API — Integrity verdicts / `appAccessRiskVerdict`.
+[R8] Android Developers, Play Integrity setup/environment details — capture/control/overlay verdict semantics and verified accessibility exclusions.
+[R9] Android Developers, Play Integrity overview — standard request latency, request binding and tiered enforcement guidance.
+[R10] Android Developers, AudioManager — `MODE_IN_CALL`, `MODE_IN_COMMUNICATION`, `MODE_COMMUNICATION_REDIRECT`.
+[R11] MeitY, Digital Personal Data Protection Act, 2023.
+[R12] MeitY, Digital Personal Data Protection Rules, 2025.
+[R13] L. Kaelbling, M. Littman, A. Cassandra, “Planning and acting in partially observable stochastic domains,” Artificial Intelligence, 1998.
+[R14] N. Shazeer et al., “Outrageously Large Neural Networks: The Sparsely-Gated Mixture-of-Experts Layer,” ICLR, 2017.
+[R15] Z. Hu et al., “Heterogeneous Graph Transformer,” WWW, 2020.
+[R16] E. Rossi et al., “Temporal Graph Networks for Deep Learning on Dynamic Graphs,” 2020.
+[R17] D. Xu et al., “Inductive Representation Learning on Temporal Graphs (TGAT),” ICLR, 2020.
+[R18] Y. Dou et al., “Enhancing Graph Neural Network-based Fraud Detectors against Camouflaged Fraudsters (CARE-GNN),” CIKM, 2020.
+[R19] A. Kazerouni et al., “Conservative Contextual Linear Bandits,” NeurIPS, 2017.
+[R20] S. Levine et al., “Offline Reinforcement Learning: Tutorial, Review, and Perspectives on Open Problems,” 2020.
+[R21] A. Angelopoulos and S. Bates, “A Gentle Introduction to Conformal Prediction and Distribution-Free Uncertainty Quantification,” 2022.
+[R22] B. McMahan et al., “Communication-Efficient Learning of Deep Networks from Decentralized Data,” AISTATS, 2017.
+[R23] PyTorch Geometric documentation, `HGTConv` and heterogeneous graph APIs.
+[R24] ExecuTorch documentation, Using ExecuTorch on Android — AAR, JNI runtime and XNNPACK backend.
+[R25] ExecuTorch documentation, Getting Started / export and lowering to `.pte`.
+[R26] Android Developers, Play Integrity demo for securing high-value actions/bank micro-app patterns.
+[R27] PyTorch, ExecuTorch 1.3 stable documentation (current at TRD authoring).
+[R28] PRD reference bibliography for government fraud statistics, FRI ecosystem, UPI and platform constraints. This TRD does not reassert those statistics as measured Vyuha outcomes.
+21.1 Engineering evidence boundary
+The cited research justifies why the selected architectures are technically plausible; it does not prove Vyuha’s eventual real-world accuracy, fairness or loss-prevention efficacy. The hackathon prototype validates system integration, model mechanics and measurable performance on synthetic/replay data. Production claims require institution-governed data, chronological evaluation, shadow deployment, human-factors studies and compliance/security review.
+
+Appendix A — Pre-Demo Checklist
+
+Appendix B — 10-Minute Final Integration Stand-up Script
+
+
+--- TABLE 0 ---
+Core engineering thesis — A local, privacy-minimal agency runtime makes the critical decision offline; institutional heterogeneous spatio-temporal graph intelligence augments beneficiary risk when available; a frozen safety-constrained policy chooses the smallest intervention that can restore independent user agency before payment authorization.
+
+--- TABLE 1 ---
+Field | Requirement
+Architecture posture | Offline-first local edge decision, asynchronously graph-augmented when available.
+Critical path | No remote LLM/API key may be required for the payment decision.
+Primary host | Participating banking / UPI / TPAP application or faithful hackathon host simulator.
+Graph placement | Institution/backend service where cross-entity relationships exist; never the isolated handset.
+UI posture | Native host-owned transaction UI; no generic Android overlay is required.
+ML posture | Measured outputs only; all latency/accuracy/false-positive numbers remain TARGET until benchmarked.
+RL posture | Train/evaluate offline; runtime action policy is frozen and bounded by approved action constraints.
+Evidence posture | Synthetic graph and coercion data are explicitly labelled synthetic in demo, logs and presentation.
+
+--- TABLE 2 ---
+Technical credibility rule — If a judge asks “where exactly does this run?”, every component must have one answer: edge SDK, host UI, institutional graph service, or offline training/simulation. Nothing may float vaguely in “the AI layer.”
+
+--- TABLE 3 ---
+Member | Primary role | Hard ownership | Secondary / pairing responsibility
+Trombokendu Chakraborty | Technical Lead / Core AI Architect | Synthetic data generator; Sparse Risk-MoE; coercion belief state; conformal calibration; heterogeneous ST-GNN; graph risk service logic; contextual bandit/offline policy; model export; end-to-end technical decisions. | Pairs with Aditya on runtime model contract; with Alaukik on action constraints/reward design; leads integration, technical Q&A and model/debug trace.
+Aditya Kumar | Edge SDK + Low-Latency Systems Engineer | Android SDK modules; Gradle AAR packaging; Kotlin/C++/ExecuTorch integration; feature packer; session state; JWS risk-token verification; caching/degraded mode; Android benchmark harness; APK/AAR release reproducibility. | Pairs with Trombokendu on tensor schema/model export; supports Sneha with Compose integration; owns final build/install/deployment stability.
+Alaukik Saxena | HCI / Safety Interaction Architect | Coercion journey model; intervention taxonomy; copy constraints; risk→friction mapping; isolation-break protocol; Safety Circle flow; accessibility; user-response semantics; HCI acceptance tests; human-factors metrics. | Pairs with Trombokendu on reward/friction cost and policy constraints; with Sneha on every warning screen; owns judge-facing explanation of why friction is a sensor.
+Sneha Sinha | Warning Layer + Dynamic Frontend Engineer | Dynamic warning renderer; Compose UI states and/or web demo dashboard; warning state machine; animation/transition polish; reason-code visualizations; debug dashboard; Safety Circle presentation; responsive/accessibility presentation layer. | 
+
+--- TABLE 4 ---
+Workstream | Trombokendu | Aditya | Alaukik | Sneha
+Architecture / schema freeze | A/R | C | C | I
+Synthetic coercion data | A/R | I | C | I
+Synthetic hetero graph | A/R | I | I | I
+Sparse Risk-MoE | A/R | C | I | I
+Belief state + conformal | A/R | C | C | I
+ST-GNN model | A/R | I | I | I
+Graph-risk API | A/R | C | I | I
+Offline policy / digital twin | A/R | I | C | I
+Android SDK public API | C | A/R | I | I
+ExecuTorch integration | C | A/R | I | I
+Token verification / degraded mode | C | A/R | I | I
+Android benchmarks | C | A/R | I | I
+Intervention taxonomy | C | I | A/R | C
+HCI copy + Safety Circle | C | I | A/R | C
+Warning renderer | I | C | A | R
+Debug dashboard | C | I | C | A/R
+End-to-end integration | A | R | C | C
+Demo technical narrative | A/R | C | R | C
+
+--- TABLE 5 ---
+RACI notation — A = accountable, R = responsible, C = consulted, I = informed. “A/R” means the owner both decides and implements.
+
+--- TABLE 6 ---
+Layer | Hackathon build | Production direction | Owner
+Android host | Kotlin, Android Studio, Jetpack Compose, coroutines | Same host-owned native UI inside participating PSP/bank app | Aditya + Sneha
+SDK packaging | Gradle multi-module AAR, Maven Local consumption | Signed internal Maven repository / versioned AAR | Aditya
+Local inference | ExecuTorch Android AAR + XNNPACK; int8/float16 where verified | ExecuTorch backend selected per device (XNNPACK/QNN/Vulkan) after compatibility benchmarks | Aditya + Trombokendu
+Hot-path native code | Kotlin first; optional C++17 NDK for feature packing/micro-optimisation only if profiling proves need | C++17/NDK or platform-native runtime where justified | Aditya
+ML training | Python 3.11, PyTorch, NumPy, pandas, scikit-learn | Reproducible training container + model registry | Trombokendu
+Graph learning | PyTorch Geometric: HeteroData, HGTConv; temporal memory/encoding | Streaming temporal heterogeneous graph with TGN/HGT-style architecture | Trombokendu
+Risk service | FastAPI + Uvicorn + Pydantic, in-memory graph/model | gRPC/Protobuf, model service, streaming graph feature pipeline | Trombokendu
+Token signing | JWS ES256 using backend private key; Android pinned public key | Rotatable institution signing keys/HSM/KMS | Trombokendu + Aditya
+Policy / RL | Frozen safe contextual bandit; Python offline training; LangGraph optional digital twin | Offline RL / conservative bandit with controlled promotion | Trombokendu + Alaukik
+Warning UI | Jetpack Compose state machine | Native bank/TPAP design system components | Sneha + Alaukik
+Engineering dashboard | React + TypeScript + Vite (optional) | Institution analyst console | Sneha
+Tests | pytest, PyTorch test vectors, Android JUnit, AndroidX Benchmark | CI + device farm + replay harness + security tests | All; Aditya integration owner
+Observability | Structured JSONL + on-screen debug timeline | OpenTelemetry/metrics pipeline under institution governance | Aditya + Trombokendu
+
+--- TABLE 7 ---
+vyuha/
+├── README.md
+├── docs/
+│   ├── architecture.md
+│   ├── contracts.md
+│   └── demo-runbook.md
+├── shared/
+│   ├── contracts/                 # canonical JSON/Protobuf schemas
+│   └── fixtures/                  # golden sessions + tokens
+├── ml/
+│   ├── edge/                      # Risk-MoE + calibration + export
+│   ├── stgnn/                     # hetero temporal graph model
+│   ├── policy/                    # contextual bandit / offline RL
+│   └── common/                    # feature transforms, seeds, metrics
+├── simulation/
+│   ├── coercion_trajectories/
+│   ├── graph_generator/
+│   └── scam_digital_twin/
+├── services/
+│   └── graph-risk/                # FastAPI model service + JWS signing
+├── sdk/
+│   └── android/
+│       ├── vyuha-api/
+│       ├── vyuha-core/
+│       ├── vyuha-inference/
+│       ├── vyuha-security/
+│       └── vyuha-observability/
+├── apps/
+│   ├── android-host/              # UPI/banking host simulator
+│   └── web-dashboard/             # optional engineering / judge view
+├── infra/
+│   ├── docker/
+│   └── scripts/
+└── tests/
+    ├── integration/
+    ├── replay/
+    └── e2e/
+
+--- TABLE 8 ---
+# 0. Create repository AFTER the hackathon officially begins, subject to organiser rules
+git init
+git checkout -b main
+mkdir -p ml services simulation shared sdk apps infra tests docs
+
+# 1. Python environment
+python3.11 -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+pip install --upgrade pip
+pip install torch torch-geometric numpy pandas scikit-learn fastapi uvicorn pydantic pyjwt cryptography networkx matplotlib pytest httpx
+pip freeze > requirements-lock.txt
+
+# 2. Android project
+# Create from Android Studio: Empty Compose Activity
+# Then create library modules: vyuha-api, vyuha-core, vyuha-inference, vyuha-security, vyuha-observability
+./gradlew tasks
+
+# 3. Optional web dashboard
+cd apps/web-dashboard
+npm create vite@latest . -- --template react-ts
+npm install
+npm run dev
+
+--- TABLE 9 ---
+Component | Budget / behavior | Implementation note
+Session lookup + feature snapshot | <2 ms target | No network; reuse objects; no JSON on hot path.
+Triage fast gate | <2 ms target | Deterministic feature rules + tiny gate.
+Risk-MoE inference | <25 ms p95 target on named mid-range Android device | Preload `.pte`; one warm-up; fixed shapes; XNNPACK.
+Belief + conformal + policy | <3 ms target | Pure local arithmetic / small matrix ops.
+Local end-to-end | <50 ms p95 target | Measured with AndroidX Benchmark; excludes UI animation and remote services.
+Graph service | <120 ms p95 target when online | Must not convert timeout to PASS.
+Play Integrity app-access-risk | Asynchronous; typically hundreds of ms and server-verified | Request near protected action; never include in local <50 ms claim. Cache only a bounded host assertion if policy allows.
+
+--- TABLE 10 ---
+Important platform reality — Play Integrity app-access-risk is useful, but it is not an offline local sensor. Standard requests are server-verified and can take hundreds of milliseconds; app-access-risk can increase latency. The SDK therefore consumes it as host/backend augmentation or uses UNEVALUATED when unavailable. [R7–R9]
+
+--- TABLE 11 ---
+Concern | Production architecture | 24-hour prototype
+UPI integration | SDK inside participating bank/TPAP/PSP app | Faithful Android payment host simulator with same pre-authorization hook.
+App access risk | Live Play Integrity request + backend verification + compact assertion | Scenario injection or cached fixture; label SIMULATED unless Play provisioning succeeds.
+Institution graph | Bank/institution event graph | Synthetic heterogeneous temporal graph, live service.
+Graph stream | Kafka/stream processor + durable store | In-memory graph + Parquet/JSON data loaded on start.
+Model serving | Managed model server / gRPC | FastAPI process with model loaded once.
+Signing | HSM/KMS-backed rotating key | Local ES256 development key; public key pinned in demo app.
+Model update | Signed rollout / staged activation / rollback | Static model in APK/AAR plus checksum.
+Policy learning | Offline production logs under governance | Synthetic digital twin + frozen contextual bandit.
+Warning UI | Host native design system | Jetpack Compose demo screens.
+
+--- TABLE 12 ---
+interface VyuhaEngine {
+    suspend fun initialize(config: VyuhaConfig): InitResult
+    suspend fun startSession(ctx: TransactionContext): SessionId
+    suspend fun observe(sessionId: SessionId, event: EventSnapshot): ObserveResult
+    suspend fun attachGraphToken(sessionId: SessionId, token: String): TokenAttachResult
+    suspend fun assess(sessionId: SessionId): RiskAssessment
+    suspend fun decide(sessionId: SessionId, assessment: RiskAssessment): InterventionDecision
+    suspend fun recordResponse(sessionId: SessionId, response: UserResponse): RiskAssessment
+    suspend fun complete(sessionId: SessionId, outcome: SessionOutcome): AuditEnvelope
+}
+
+data class TransactionContext(
+    val sessionNonce: String,
+    val amountMinor: Long,
+    val currency: String = "INR",
+    val beneficiaryIdHash: String,
+    val paymentRail: PaymentRail,
+    val payeeIsNew: Boolean,
+    val hostRiskTier: Int?,
+    val createdAtEpochMs: Long
+)
+
+--- TABLE 13 ---
+Field | Type | Source | Rule
+timestampMs | Long | SDK clock | Monotonic order; reject stale event beyond session window.
+communicationMode | Enum | AudioManager | NONE / IN_CALL / IN_COMMUNICATION / REDIRECT / UNKNOWN. Weak evidence only.
+accessRisk | Enum set | Host assertion / demo fixture | CAPTURING / CONTROLLING / OVERLAY / CLEAN / UNEVALUATED.
+deviceIntegrityTier | Enum | Host assertion | STRONG / DEVICE / BASIC / UNKNOWN; never standalone fraud label.
+amountPercentile | Float 0..1 | Local baseline | Fallback 0.5 + missing flag if history insufficient.
+velocity5m | Int | Host/local baseline | Transactions initiated in recent 5-minute window.
+velocity1h | Int | Host/local baseline | Transactions initiated in recent 60-minute window.
+payeeNovelty | Float 0..1 | Host/local cache | 1.0 if unseen; decay with interaction history.
+interactionCode | Enum? | Warning layer | Only after intervention; typed semantics.
+
+--- TABLE 14 ---
+{
+  "iss": "vyuha-graph-demo",
+  "aud": "vyuha-edge",
+  "sub": "beneficiary:<hash>",
+  "sid": "<sessionNonce>",
+  "iat": 1789...,
+  "exp": 1789... + 120,
+  "model": "hstgnn-0.1.0",
+  "graphRisk": 0.87,
+  "uncertainty": 0.11,
+  "topology": ["RAPID_FAN_IN", "DEVICE_REUSE"],
+  "evidenceWindowSec": 86400
+}
+// JWS signed with ES256. Android verifies signature, issuer, audience, beneficiary binding, sid and expiry.
+
+--- TABLE 15 ---
+Object | Required fields
+RiskAssessment | sessionId, localRisk, graphRisk?, belief, conformalSet, uncertaintyTier, fastPath, reasonCodes[], expertScores{}, routerWeights{}, graphState, modelVersion, calibrationVersion, latencyMicros.
+InterventionDecision | actionId, severity, uiSpecId, cooldownMs, requiresRiskRemediation, allowContinue, allowCancel, allowTrustedVerify, reasonCodes[], policyVersion.
+AuditEnvelope | session pseudonym, versions, coarse risk tier, reason codes, action/outcome, timing metrics; no call audio/screen/chat/PIN/OTP.
+
+--- TABLE 16 ---
+ID | Human intent | Host behavior
+A0_PASS | No meaningful evidence | Proceed silently.
+A1_MICRO_CHECK | Low-cost uncertainty reduction | One short question; no lockout.
+A2_REFLECT | Create cognitive separation | Context statement + independent confirmation.
+A3_ISOLATION_BREAK | Break synchronous scammer control | Require risky-access remediation / leave call where host/platform supports; start short cooldown.
+A4_TRUSTED_VERIFY | Independent human verification | Safety Circle / bank support flow with minimal disclosure.
+A5_HOST_STEP_UP | Institution-controlled high-risk handling | Host may invoke its own step-up/hold; SDK only recommends.
+
+--- TABLE 17 ---
+Module | Contents | May depend on
+vyuha-api | Public interfaces, DTOs, enums, callbacks | Kotlin stdlib only.
+vyuha-core | Session registry, feature normalization, belief/policy orchestrator | vyuha-api, inference, security, observability.
+vyuha-inference | ExecuTorch Module wrapper, tensor buffers, model metadata | ExecuTorch AAR, vyuha-api.
+vyuha-security | JWS verify, key pinning, token validation, hash utilities | vyuha-api, Java crypto.
+vyuha-observability | Timing spans, structured local logs, debug trace | vyuha-api only.
+android-host | Payment simulator + Compose UI | All SDK modules via published AAR for final demo.
+
+--- TABLE 18 ---
+// build.gradle.kts — use the stable version pinned in libs.versions.toml
+dependencies {
+    implementation("org.pytorch:executorch-android:<PINNED_STABLE>")
+}
+
+// Runtime concept
+class EdgeModelRunner(assetPath: String) {
+    // 1. Copy/read .pte from assets if runtime needs filesystem path
+    // 2. Load Module once
+    // 3. Reuse Tensor buffers
+    // 4. forward(static, temporal, graph) -> local risk + expert scores + router weights
+}
+
+--- TABLE 19 ---
+Failure | Required SDK behavior
+No internet | Run full local model; graphState=UNAVAILABLE; policy sees missing graph.
+Graph timeout | Stop waiting at bounded deadline; never infer graphRisk=0.
+Invalid graph signature | Reject token; reason=GRAPH_TOKEN_INVALID; continue local.
+Model load failure | Use deterministic baseline policy or disable Vyuha UI with explicit host error; never crash payment app.
+Corrupt config/model hash | Reject activation; stay on last-known-good bundle.
+Play Integrity not available | accessRisk=UNEVALUATED; no penalty solely for missing.
+Insufficient baseline history | baselineMissing=1; use neutral defaults and rely on other experts.
+
+--- TABLE 20 ---
+Group | Example features | Tensor allocation
+Transaction | log amount, amount percentile, payee novelty, velocity 5m/1h, rail one-hot, initiation mode | static[0:10]
+Communication | mode in-call, in-communication, redirect, unknown | static[10:14]
+Access/device | capture/control/overlay, device/app integrity tiers, unevaluated masks | static[14:22]
+Baseline/context | time sin/cos, recent payee count, amount z proxy, missing flags | static[22:32]
+Temporal sequence | last 8 event snapshots: deltas + selected signals | temporal[1,8,16]
+Graph augmentation | risk, uncertainty, token age, topology bits, missing/invalid flags | graph[1,8]
+
+--- TABLE 21 ---
+Expert | Model | Output
+E1 Temporal Context | Tiny TCN: Conv1D(16→24,k=3) → ReLU → Conv1D(24→16,k=3) → pooled MLP | p_temporal
+E2 Personal Baseline | MLP 10→16→8→1 | p_baseline
+E3 Device Access | MLP 8→8→1 | p_device
+E4 Transaction Novelty | MLP 10→16→1 | p_novelty
+E5 Institutional Risk | MLP 8→8→1; graph missing flag included | p_graph
+Router | MLP 32→16→5 softmax; top-k=2 after fast gate | expert weights + route entropy
+Fusion head | Weighted expert logits + selected interaction terms → sigmoid | p_local
+
+--- TABLE 22 ---
+# Conceptual fast path — tune on benign validation data, do not hard-code as a product claim
+if (
+    amount_percentile < T_AMOUNT
+    and payee_novelty < T_NOVELTY
+    and access_risk in {CLEAN, UNEVALUATED}
+    and communication_mode == NONE
+    and host_risk_tier <= LOW
+    and graph_risk in {MISSING, LOW}
+):
+    return PASS(reason="LOW_RISK_FAST_PATH")
+else:
+    return run_sparse_moe(...)
+
+--- TABLE 23 ---
+Do not chase “95%” blindly — The PRD treats a 95% fast-path rate as a target, not a truth. Measure the achieved benign fast-path rate and additional-friction rate. Optimizing the router to hit 95% by weakening safety is not success.
+
+--- TABLE 24 ---
+# Prototype recurrence
+L_t = clip(
+    0.75 * L_(t-1)
+    + w_local * logit(p_local)
+    + w_graph * graph_term
+    + w_response * response_evidence
+    + w_access * access_risk_term
+    + bias,
+    -6.0, 6.0
+)
+b_t = sigmoid(L_t)
+
+# graph_term = 0 when missing, while graph_missing is a separate policy feature.
+# response_evidence can be strongly positive for SOMEONE_DIRECTING and negative for TRUSTED_VERIFIED.
+
+--- TABLE 25 ---
+Belief / evidence | Default eligible actions | Constraint
+b < 0.25 and confident | A0_PASS | No UI.
+0.25 ≤ b < 0.45 or prediction ambiguous | A1_MICRO_CHECK | No lockout; low-cost information gain.
+0.45 ≤ b < 0.70 | A2_REFLECT | Must provide easy cancel and continue path.
+b ≥ 0.70 with corroborating device/graph/response evidence | A3_ISOLATION_BREAK | Cannot rely on belief alone; require at least one independent high-risk channel.
+Persistent high risk after break or explicit “someone directing” response | A4_TRUSTED_VERIFY / A5_HOST_STEP_UP | Institution/user consent determines actual hold/block.
+
+--- TABLE 26 ---
+Node type | Core features | Prototype count target
+Account | age, type, risk-history aggregates, inbound/outbound counts | 5,000
+VPA | age, creation bucket, linked-account count | 6,000
+Device | account reuse count, first-seen/last-seen | 2,000
+Phone | risk tier / complaint linkage proxy | 1,000
+Merchant | category, transaction volume, stable-hub indicator | 300
+Complaint | timestamp, target entity type, severity proxy | 150–300
+IP / network endpoint | reuse count, novelty | 500
+
+--- TABLE 27 ---
+Relation | Direction | Temporal features / rationale
+Account —transfers_to→ Account | directed | timestamp, amount, channel, time-delta, recurrence, velocity. Core laundering edge.
+Account —owns→ VPA | directed | start/end time, relation age.
+Account —seen_on→ Device | directed | first/last seen, recurrence; detects device reuse across mule identities.
+Device —bound_to→ Phone | directed | time relation; optional.
+Account —pays→ Merchant | directed | benign-hub hard negative; prevents high-degree merchant from looking like mule.
+Complaint —targets→ Account/VPA/Phone | directed | delayed supervisory signal.
+Device —seen_at→ IP | directed | shared infrastructure / IP reuse proxy.
+
+--- TABLE 28 ---
+Stage | Implementation | Reason
+Node encoder | Per-type MLP → 64-d embedding; missing masks concatenated | Handles heterogeneous schemas.
+Temporal memory | TGN-style memory on transfer/device events or simplified event-time encoder for MVP | Represents recency/order. [R20]
+Relational propagation | 2× HGTConv, 4 heads, 64-d output | Type/relation-aware spatial message passing. [R19]
+Temporal augmentation | Time2Vec / sinusoidal delta embeddings concatenated into event messages or node aggregates | Avoids static-graph-only scoring.
+Risk head | beneficiary Account embedding → 64→32→1 sigmoid + uncertainty head | Produces institution risk.
+Robustness research | CARE-GNN-inspired neighbor selection/camouflage tests | Evaluates camouflaged mule topologies. [R22]
+
+--- TABLE 29 ---
+Parameter | Starter value | Notes
+Hidden dim | 64 | Small enough for rapid training.
+HGT layers | 2 | Avoid over-smoothing.
+Heads | 4 | Must divide output dim.
+Dropout | 0.10 | Tune only if validation unstable.
+Optimizer | AdamW | lr 1e-3, weight decay 1e-4 starting point.
+Epochs | 30 max | Early stop on validation PR-AUC/patience 5.
+Loss | BCEWithLogits + class weight | Use focal loss only if needed.
+Split | 70/15/15 chronological | Hold out mule clusters; never random edge leakage.
+Baselines | Logistic/XGBoost tabular; GraphSAGE; HGT static | Show actual value of temporal + heterogeneous structure.
+
+--- TABLE 30 ---
+services/graph-risk/
+├── app.py
+├── schemas.py
+├── model_loader.py
+├── graph_store.py
+├── risk_service.py
+├── signer.py
+├── config.yaml
+└── tests/
+
+POST /v1/beneficiary-risk
+{
+  "sessionNonce": "...",
+  "beneficiaryIdHash": "...",
+  "amountMinor": 8600000,
+  "rail": "UPI",
+  "requestTs": 1789...
+}
+
+200 -> { "riskToken": "<compact JWS>", "serviceMs": 23.4 }
+
+--- TABLE 31 ---
+Fixture | Expected graph output | Integrated expectation
+known_benign_merchant | risk < low threshold, motif=STABLE_MERCHANT | Should not create user friction alone.
+new_unknown_payee | moderate uncertainty, low evidence | Policy relies on local context.
+mule_fan_in_account | high risk, RAPID_FAN_IN | If local context elevated, belief/action escalates.
+mule_device_reuse | high/moderate risk, DEVICE_REUSE | Visible graph explanation for judge debug panel.
+expired_token | SDK rejects before fusion | graphState=INVALID; local path continues.
+wrong_session_token | SDK rejects | Replay protection demonstrated.
+
+--- TABLE 32 ---
+Feature block | Examples
+Belief | b_t, delta from previous step, persistence count.
+Uncertainty | conformal set size, route entropy, graph uncertainty.
+Risk evidence | local risk, graph risk, access-risk flags, host tier.
+Loss proxy | amount percentile / absolute amount bucket.
+Session state | previous action, previous response, cooldown elapsed.
+User preferences | Safety Circle configured, accessibility/motion settings; avoid protected-attribute profiling.
+
+--- TABLE 33 ---
+Condition | Policy rule
+Low belief + confident benign | Only A0/A1 eligible.
+Prediction ambiguous | A1/A2 preferred; A3 requires independent corroboration.
+Capture/control risk high | A3 remediation can become eligible earlier.
+Explicit SOMEONE_DIRECTING response | A3/A4 eligible regardless of graph availability.
+No Safety Circle configured | A4 maps to bank/support path, not arbitrary contact.
+Accessibility conflict | Do not treat verified accessibility as remote-control evidence.
+Graph missing | Never auto-pass solely because graph service absent.
+
+--- TABLE 34 ---
+reward = + W_PREVENT * prevented_loss_proxy
+         - W_FRICTION * friction_cost(action)
+         - W_FALSE_ESC * unnecessary_escalation
+         - W_DROP * legitimate_payment_abandonment
+
+# Runtime
+eligible = safety_filter(context, action_catalogue)
+a_star = argmax_a predicted_reward(a | context), a in eligible
+# No coefficient update on-device.
+
+--- TABLE 35 ---
+Agent | Role | Implementation
+Red Scammer Agent | Adapts coercion strategy, instructs victim to ignore warnings, changes channel or story. | LangGraph state machine; optional local LLM via Ollama/llama.cpp. Not needed on runtime path.
+Victim Persona Agent | Represents susceptibility, compliance, urgency and response to friction. | Stochastic state machine with persona parameters; optional local LLM text.
+Vyuha Defender Agent | Receives context and chooses permitted action. | Frozen policy under evaluation.
+Adjudicator / Environment | Computes whether scam succeeds, payment occurs, friction cost and safety reward. | Deterministic simulator + seeded randomness.
+
+--- TABLE 36 ---
+State | Alaukik requirement | Sneha implementation
+PASS | No visible security theatre. | No screen; optional tiny debug badge only in engineering mode.
+MICRO_INQUIRY | One precise, low-load question designed to obtain information. | Bottom sheet/card, two clear actions, <1 screen.
+REFLECTION | Reduce urgency; separate user decision from caller instruction. | Full-height native screen with calm context + continue/cancel.
+ISOLATION_BREAK | Break synchronous control before payment proceeds. | Remediation status, 15–30 s configurable cooldown, progress, why-this-matters copy.
+TRUSTED_VERIFY | Bring independent trusted human or bank support into loop. | Contact choice, minimal disclosure preview, verify status.
+RESOLUTION | Make outcome obvious and reversible where policy allows. | Payment cancelled / resume / bank step-up handoff.
+
+--- TABLE 37 ---
+data class WarningSpec(
+    val uiSpecId: String,
+    val titleRes: String,
+    val bodyRes: String,
+    val primaryAction: UiAction,
+    val secondaryAction: UiAction?,
+    val cooldownMs: Long = 0,
+    val requiresRiskRemediation: Boolean = false,
+    val showTrustedVerify: Boolean = false,
+    val accessibilityHintRes: String? = null
+)
+
+--- TABLE 38 ---
+Test | Pass condition
+TalkBack | Every warning title, body, amount/payee summary and action has meaningful content description / traversal order.
+Touch targets | Primary and secondary controls meet platform minimum target sizes.
+Motion | Reduced-motion mode disables nonessential animation/cooldown flourish.
+Contrast | Text/background meets accessible contrast; severity not conveyed by color alone.
+Language complexity | Core instruction readable in short sentences; no “MoE/GNN/bandit” terminology.
+Verified accessibility services | Must not be treated as capture/control solely through Play app-access-risk because verified accessibility services are excluded from those verdicts. [R7–R9]
+
+--- TABLE 39 ---
+Data | Location | Remote? | Retention | Notes
+Transaction amount / payee hash | Host + SDK session | Graph request may include coarse amount + institution-resolved beneficiary | Session / host policy | No UPI PIN/OTP.
+Communication mode | Device | No by default | Session only | Boolean/enum, not call identity/audio.
+Access-risk assertion | Host/SDK | Derived from host backend if Play Integrity used | Short TTL | No app identity required.
+Local baseline aggregates | Device/host | No raw history sent by SDK | Rolling aggregate | Amount percentile/novelty only.
+Graph relations | Institution service | Not sent to handset | Institution policy | Only signed score/token reaches edge.
+Warning response | SDK session | Outcome summary optional | Short / governed | Typed event, no free text needed.
+Debug trace | Local engineering mode | No unless explicitly exported | Ephemeral | Disabled or redacted in production.
+
+--- TABLE 40 ---
+Attack | Test | Expected defense
+Token replay | Reuse safe token for different session/beneficiary | Reject due to sid/sub/exp mismatch.
+Tampered model | Change `.pte` or config hash | Activation fails; last-known-good bundle remains.
+Scammer coaches “press No” | High-risk scenario with coached response | Isolation-break uses channel remediation, not only yes/no.
+Graph service DoS | Drop network / add 2 s delay | Bounded timeout; local path continues with UNKNOWN_GRAPH.
+Camouflage mule | Add benign merchant neighbors | Compare robustness to static baselines; reason code not degree-only.
+Accessibility false positive | Enable verified accessibility fixture | No capture/control penalty solely from accessibility.
+Threshold probing | Repeated borderline sessions | Production UI does not expose score/threshold; debug mode gated.
+
+--- TABLE 41 ---
+Gate | Must be true | Blocker owner
+G0 — 90 min | Repo builds; schemas frozen; fake E2E action renders. | Trombokendu + Aditya
+G1 — 4 h | Signed heuristic graph token verified by Android; UI state machine works. | Aditya + Sneha
+G2 — 8 h | Synthetic datasets reproducible; first ST-GNN + edge model training run completes. | Trombokendu
+G3 — 12 h | Real `.pte` runs on Android; graph model service returns real model score. | Trombokendu + Aditya
+G4 — 16 h | Belief/conformal/policy integrated; A0 and A3 scenarios deterministic. | All
+G5 — 20 h | Benchmarks + HCI/accessibility tests; no critical crash. | Aditya + Alaukik
+G6 — 22.5 h | Demo package frozen; only presentation/debug fixes allowed. | Trombokendu
+G7 — 23.5 h | Two clean rehearsals, offline fallback tested, final artifacts copied. | All
+
+--- TABLE 42 ---
+Time | Trombokendu — Core AI | Aditya — Edge/SDK | Alaukik — HCI | Sneha — Warning UI | Gate
+10:30–10:45 | Freeze contracts + repo architecture — plan/setup | Create Android modules + build green — plan/setup | Freeze intervention taxonomy/action IDs — plan/setup | Create Compose warning package skeleton — plan/setup | 
+10:45–11:00 | Freeze contracts + repo architecture — implement | Create Android modules + build green — implement | Freeze intervention taxonomy/action IDs — implement | Create Compose warning package skeleton — implement | 
+11:00–11:15 | Freeze contracts + repo architecture — test/integrate | Create Android modules + build green — test/integrate | Freeze intervention taxonomy/action IDs — test/integrate | Create Compose warning package skeleton — test/integrate | 
+11:15–11:30 | Freeze contracts + repo architecture — commit/hand-off | Create Android modules + build green — commit/hand-off | Freeze intervention taxonomy/action IDs — commit/hand-off | Create Compose warning package skeleton — commit/hand-off | G0 contracts target
+11:30–11:45 | Implement synthetic session schema + seeds — plan/setup | Mirror contracts in Kotlin + fake engine — plan/setup | Write WarningSpec + response enums — plan/setup | Build PASS/A1/A2 screens with fake data — plan/setup | 
+11:45–12:00 | Implement synthetic session schema + seeds — implement | Mirror contracts in Kotlin + fake engine — implement | Write WarningSpec + response enums — implement | Build PASS/A1/A2 screens with fake data — implement | 
+12:00–12:15 | Implement synthetic session schema + seeds — test/integrate | Mirror contracts in Kotlin + fake engine — test/integrate | Write WarningSpec + response enums — test/integrate | Build PASS/A1/A2 screens with fake data — test/integrate | 
+12:15–12:30 | Implement synthetic session schema + seeds — commit/hand-off | Mirror contracts in Kotlin + fake engine — commit/hand-off | Write WarningSpec + response enums — commit/hand-off | Build PASS/A1/A2 screens with fake data — commit/hand-off | fake E2E expected
+12:30–12:45 | Start graph generator: normal entities + transfers — plan/setup | Session registry + feature structs — plan/setup | Design benign/ambiguous/high-risk journeys — plan/setup | Build A3 isolation-break screen — plan/setup | 
+12:45–13:00 | Start graph generator: normal entities + transfers — implement | Session registry + feature structs — implement | Design benign/ambiguous/high-risk journeys — implement | Build A3 isolation-break screen — implement | 
+13:00–13:15 | Start graph generator: normal entities + transfers — test/integrate | Session registry + feature structs — test/integrate | Design benign/ambiguous/high-risk journeys — test/integrate | Build A3 isolation-break screen — test/integrate | 
+13:15–13:30 | Start graph generator: normal entities + transfers — commit/hand-off | Session registry + feature structs — commit/hand-off | Design benign/ambiguous/high-risk journeys — commit/hand-off | Build A3 isolation-break screen — commit/hand-off | repo + fake service
+
+--- TABLE 43 ---
+Time | Trombokendu — Core AI | Aditya — Edge/SDK | Alaukik — HCI | Sneha — Warning UI | Gate
+13:30–13:45 | Inject mule motifs + chronological splits — plan/setup | JWS verifier + heuristic token client — plan/setup | Isolation Break copy + Safety Circle consent — plan/setup | Build cooldown + remediation transition — plan/setup | 
+13:45–14:00 | Inject mule motifs + chronological splits — implement | JWS verifier + heuristic token client — implement | Isolation Break copy + Safety Circle consent — implement | Build cooldown + remediation transition — implement | 
+14:00–14:15 | Inject mule motifs + chronological splits — test/integrate | JWS verifier + heuristic token client — test/integrate | Isolation Break copy + Safety Circle consent — test/integrate | Build cooldown + remediation transition — test/integrate | 
+14:15–14:30 | Inject mule motifs + chronological splits — commit/hand-off | JWS verifier + heuristic token client — commit/hand-off | Isolation Break copy + Safety Circle consent — commit/hand-off | Build cooldown + remediation transition — commit/hand-off | signed token path
+14:30–14:45 | Build HGT/HeteroData loader; baseline train — plan/setup | ExecuTorch AAR setup + dummy model load — plan/setup | HCI review fake vertical slice — plan/setup | Build A4 Safety Circle UI — plan/setup | 
+14:45–15:00 | Build HGT/HeteroData loader; baseline train — implement | ExecuTorch AAR setup + dummy model load — implement | HCI review fake vertical slice — implement | Build A4 Safety Circle UI — implement | 
+15:00–15:15 | Build HGT/HeteroData loader; baseline train — test/integrate | ExecuTorch AAR setup + dummy model load — test/integrate | HCI review fake vertical slice — test/integrate | Build A4 Safety Circle UI — test/integrate | 
+15:15–15:30 | Build HGT/HeteroData loader; baseline train — commit/hand-off | ExecuTorch AAR setup + dummy model load — commit/hand-off | HCI review fake vertical slice — commit/hand-off | Build A4 Safety Circle UI — commit/hand-off | first UI vertical slice
+15:30–15:45 | Train static HGT baseline; inspect PR-AUC — plan/setup | Feature packer + fixed tensors — plan/setup | Define friction costs + prohibited actions — plan/setup | Implement WarningSpec renderer — plan/setup | 
+15:45–16:00 | Train static HGT baseline; inspect PR-AUC — implement | Feature packer + fixed tensors — implement | Define friction costs + prohibited actions — implement | Implement WarningSpec renderer — implement | 
+16:00–16:15 | Train static HGT baseline; inspect PR-AUC — test/integrate | Feature packer + fixed tensors — test/integrate | Define friction costs + prohibited actions — test/integrate | Implement WarningSpec renderer — test/integrate | 
+16:15–16:30 | Train static HGT baseline; inspect PR-AUC — commit/hand-off | Feature packer + fixed tensors — commit/hand-off | Define friction costs + prohibited actions — commit/hand-off | Implement WarningSpec renderer — commit/hand-off | dataset + baseline proof
+
+--- TABLE 44 ---
+Time | Trombokendu — Core AI | Aditya — Edge/SDK | Alaukik — HCI | Sneha — Warning UI | Gate
+16:30–16:45 | Add temporal aggregates / TGN memory attempt — plan/setup | AudioManager adapter + host assertion interface — plan/setup | Accessibility checklist + talkback flow — plan/setup | Add loading/offline/error states — plan/setup | 
+16:45–17:00 | Add temporal aggregates / TGN memory attempt — implement | AudioManager adapter + host assertion interface — implement | Accessibility checklist + talkback flow — implement | Add loading/offline/error states — implement | 
+17:00–17:15 | Add temporal aggregates / TGN memory attempt — test/integrate | AudioManager adapter + host assertion interface — test/integrate | Accessibility checklist + talkback flow — test/integrate | Add loading/offline/error states — test/integrate | 
+17:15–17:30 | Add temporal aggregates / TGN memory attempt — commit/hand-off | AudioManager adapter + host assertion interface — commit/hand-off | Accessibility checklist + talkback flow — commit/hand-off | Add loading/offline/error states — commit/hand-off | pipeline stable
+17:30–17:45 | ST-GNN service wrapper + heuristic fallback — plan/setup | mavenLocal AAR publish test — plan/setup | Prepare usability task scripts — plan/setup | Create debug risk timeline panel — plan/setup | 
+17:45–18:00 | ST-GNN service wrapper + heuristic fallback — implement | mavenLocal AAR publish test — implement | Prepare usability task scripts — implement | Create debug risk timeline panel — implement | 
+18:00–18:15 | ST-GNN service wrapper + heuristic fallback — test/integrate | mavenLocal AAR publish test — test/integrate | Prepare usability task scripts — test/integrate | Create debug risk timeline panel — test/integrate | 
+18:15–18:30 | ST-GNN service wrapper + heuristic fallback — commit/hand-off | mavenLocal AAR publish test — commit/hand-off | Prepare usability task scripts — commit/hand-off | Create debug risk timeline panel — commit/hand-off | G1 signed heuristic token
+18:30–18:45 | Implement Risk-MoE dataset + experts — plan/setup | Integrate first edge model placeholder — plan/setup | Review model reason→action mapping — plan/setup | Connect SDK fake callbacks to UI — plan/setup | 
+18:45–19:00 | Implement Risk-MoE dataset + experts — implement | Integrate first edge model placeholder — implement | Review model reason→action mapping — implement | Connect SDK fake callbacks to UI — implement | 
+19:00–19:15 | Implement Risk-MoE dataset + experts — test/integrate | Integrate first edge model placeholder — test/integrate | Review model reason→action mapping — test/integrate | Connect SDK fake callbacks to UI — test/integrate | 
+19:15–19:30 | Implement Risk-MoE dataset + experts — commit/hand-off | Integrate first edge model placeholder — commit/hand-off | Review model reason→action mapping — commit/hand-off | Connect SDK fake callbacks to UI — commit/hand-off | edge training + UI wired
+
+--- TABLE 45 ---
+Time | Trombokendu — Core AI | Aditya — Edge/SDK | Alaukik — HCI | Sneha — Warning UI | Gate
+19:30–19:45 | Train Risk-MoE/router; save metrics — plan/setup | Load Trombo golden vectors; parity harness — plan/setup | Tune policy constraints with Trombo — plan/setup | Connect typed WarningEvent responses — plan/setup | 
+19:45–20:00 | Train Risk-MoE/router; save metrics — implement | Load Trombo golden vectors; parity harness — implement | Tune policy constraints with Trombo — implement | Connect typed WarningEvent responses — implement | 
+20:00–20:15 | Train Risk-MoE/router; save metrics — test/integrate | Load Trombo golden vectors; parity harness — test/integrate | Tune policy constraints with Trombo — test/integrate | Connect typed WarningEvent responses — test/integrate | 
+20:15–20:30 | Train Risk-MoE/router; save metrics — commit/hand-off | Load Trombo golden vectors; parity harness — commit/hand-off | Tune policy constraints with Trombo — commit/hand-off | Connect typed WarningEvent responses — commit/hand-off | model training checkpoint
+20:30–20:45 | Calibrate + export golden vectors — plan/setup | Integrate `.pte`; warm inference — plan/setup | Test warning comprehension with teammate — plan/setup | Add motion/accessibility settings — plan/setup | 
+20:45–21:00 | Calibrate + export golden vectors — implement | Integrate `.pte`; warm inference — implement | Test warning comprehension with teammate — implement | Add motion/accessibility settings — implement | 
+21:00–21:15 | Calibrate + export golden vectors — test/integrate | Integrate `.pte`; warm inference — test/integrate | Test warning comprehension with teammate — test/integrate | Add motion/accessibility settings — test/integrate | 
+21:15–21:30 | Calibrate + export golden vectors — commit/hand-off | Integrate `.pte`; warm inference — commit/hand-off | Test warning comprehension with teammate — commit/hand-off | Add motion/accessibility settings — commit/hand-off | golden vectors ready
+21:30–21:45 | Export `.pte`; parity test in Python — plan/setup | Measure p50/p95; fix allocations — plan/setup | Refine copy: calm, short, non-shaming — plan/setup | Build operator scenario selector (debug only) — plan/setup | 
+21:45–22:00 | Export `.pte`; parity test in Python — implement | Measure p50/p95; fix allocations — implement | Refine copy: calm, short, non-shaming — implement | Build operator scenario selector (debug only) — implement | 
+22:00–22:15 | Export `.pte`; parity test in Python — test/integrate | Measure p50/p95; fix allocations — test/integrate | Refine copy: calm, short, non-shaming — test/integrate | Build operator scenario selector (debug only) — test/integrate | 
+22:15–22:30 | Export `.pte`; parity test in Python — commit/hand-off | Measure p50/p95; fix allocations — commit/hand-off | Refine copy: calm, short, non-shaming — commit/hand-off | Build operator scenario selector (debug only) — commit/hand-off | G2/G3 parity target
+
+--- TABLE 46 ---
+Time | Trombokendu — Core AI | Aditya — Edge/SDK | Alaukik — HCI | Sneha — Warning UI | Gate
+22:30–22:45 | Wire belief-state recurrence — plan/setup | Graph token fusion + timeout path — plan/setup | Validate response semantics into belief state — plan/setup | Show graph motif/reason codes in debug — plan/setup | 
+22:45–23:00 | Wire belief-state recurrence — implement | Graph token fusion + timeout path — implement | Validate response semantics into belief state — implement | Show graph motif/reason codes in debug — implement | 
+23:00–23:15 | Wire belief-state recurrence — test/integrate | Graph token fusion + timeout path — test/integrate | Validate response semantics into belief state — test/integrate | Show graph motif/reason codes in debug — test/integrate | 
+23:15–23:30 | Wire belief-state recurrence — commit/hand-off | Graph token fusion + timeout path — commit/hand-off | Validate response semantics into belief state — commit/hand-off | Show graph motif/reason codes in debug — commit/hand-off | belief integrated
+23:30–23:45 | Implement conformal quantile + abstain — plan/setup | Offline/degraded mode tests — plan/setup | Design graph-unavailable warning behavior — plan/setup | Polish transitions; no blocking animations — plan/setup | 
+23:45–00:00 | Implement conformal quantile + abstain — implement | Offline/degraded mode tests — implement | Design graph-unavailable warning behavior — implement | Polish transitions; no blocking animations — implement | 
+00:00–00:15 | Implement conformal quantile + abstain — test/integrate | Offline/degraded mode tests — test/integrate | Design graph-unavailable warning behavior — test/integrate | Polish transitions; no blocking animations — test/integrate | 
+00:15–00:30 | Implement conformal quantile + abstain — commit/hand-off | Offline/degraded mode tests — commit/hand-off | Design graph-unavailable warning behavior — commit/hand-off | Polish transitions; no blocking animations — commit/hand-off | conformal integrated
+00:30–00:45 | Build frozen bandit policy baseline — plan/setup | Belief/policy Android wiring support — plan/setup | Review bandit reward vs human safety — plan/setup | Optional React engineering dashboard — plan/setup | 
+00:45–01:00 | Build frozen bandit policy baseline — implement | Belief/policy Android wiring support — implement | Review bandit reward vs human safety — implement | Optional React engineering dashboard — implement | 
+01:00–01:15 | Build frozen bandit policy baseline — test/integrate | Belief/policy Android wiring support — test/integrate | Review bandit reward vs human safety — test/integrate | Optional React engineering dashboard — test/integrate | 
+01:15–01:30 | Build frozen bandit policy baseline — commit/hand-off | Belief/policy Android wiring support — commit/hand-off | Review bandit reward vs human safety — commit/hand-off | Optional React engineering dashboard — commit/hand-off | policy integrated
+
+--- TABLE 47 ---
+Time | Trombokendu — Core AI | Aditya — Edge/SDK | Alaukik — HCI | Sneha — Warning UI | Gate
+01:30–01:45 | Build digital-twin scenarios / reward replay — plan/setup | Benchmark full assess/decide — plan/setup | Run 5–10 scripted HCI scenarios — plan/setup | Integrate live graph/service status — plan/setup | 
+01:45–02:00 | Build digital-twin scenarios / reward replay — implement | Benchmark full assess/decide — implement | Run 5–10 scripted HCI scenarios — implement | Integrate live graph/service status — implement | 
+02:00–02:15 | Build digital-twin scenarios / reward replay — test/integrate | Benchmark full assess/decide — test/integrate | Run 5–10 scripted HCI scenarios — test/integrate | Integrate live graph/service status — test/integrate | 
+02:15–02:30 | Build digital-twin scenarios / reward replay — commit/hand-off | Benchmark full assess/decide — commit/hand-off | Run 5–10 scripted HCI scenarios — commit/hand-off | Integrate live graph/service status — commit/hand-off | G4 full decision path
+02:30–02:45 | Replace graph heuristic with ST-GNN — plan/setup | Consume real ST-GNN tokens — plan/setup | Check A3 requires corroborating evidence — plan/setup | Connect real policy actions — plan/setup | 
+02:45–03:00 | Replace graph heuristic with ST-GNN — implement | Consume real ST-GNN tokens — implement | Check A3 requires corroborating evidence — implement | Connect real policy actions — implement | 
+03:00–03:15 | Replace graph heuristic with ST-GNN — test/integrate | Consume real ST-GNN tokens — test/integrate | Check A3 requires corroborating evidence — test/integrate | Connect real policy actions — test/integrate | 
+03:15–03:30 | Replace graph heuristic with ST-GNN — commit/hand-off | Consume real ST-GNN tokens — commit/hand-off | Check A3 requires corroborating evidence — commit/hand-off | Connect real policy actions — commit/hand-off | real graph model integrated
+03:30–03:45 | Tune two deterministic demo scenarios — plan/setup | AAR consumed by host, not source module — plan/setup | Accessibility + timeout/error review — plan/setup | Fix layout on demo device — plan/setup | 
+03:45–04:00 | Tune two deterministic demo scenarios — implement | AAR consumed by host, not source module — implement | Accessibility + timeout/error review — implement | Fix layout on demo device — implement | 
+04:00–04:15 | Tune two deterministic demo scenarios — test/integrate | AAR consumed by host, not source module — test/integrate | Accessibility + timeout/error review — test/integrate | Fix layout on demo device — test/integrate | 
+04:15–04:30 | Tune two deterministic demo scenarios — commit/hand-off | AAR consumed by host, not source module — commit/hand-off | Accessibility + timeout/error review — commit/hand-off | Fix layout on demo device — commit/hand-off | two demo scenarios stable
+
+--- TABLE 48 ---
+Time | Trombokendu — Core AI | Aditya — Edge/SDK | Alaukik — HCI | Sneha — Warning UI | Gate
+04:30–04:45 | Adversarial cases: graph missing/coach response — plan/setup | Fault tests: invalid token/no net/model error — plan/setup | Coach-resistance test: “scammer tells press No” — plan/setup | Add metric cards: latency/model versions — plan/setup | 
+04:45–05:00 | Adversarial cases: graph missing/coach response — implement | Fault tests: invalid token/no net/model error — implement | Coach-resistance test: “scammer tells press No” — implement | Add metric cards: latency/model versions — implement | 
+05:00–05:15 | Adversarial cases: graph missing/coach response — test/integrate | Fault tests: invalid token/no net/model error — test/integrate | Coach-resistance test: “scammer tells press No” — test/integrate | Add metric cards: latency/model versions — test/integrate | 
+05:15–05:30 | Adversarial cases: graph missing/coach response — commit/hand-off | Fault tests: invalid token/no net/model error — commit/hand-off | Coach-resistance test: “scammer tells press No” — commit/hand-off | Add metric cards: latency/model versions — commit/hand-off | fault/coaching tests
+05:30–05:45 | Fix calibration/policy edge cases — plan/setup | AndroidX benchmark 100+ runs — plan/setup | Measure dwell/completion in demo — plan/setup | Final visual polish + iconography — plan/setup | 
+05:45–06:00 | Fix calibration/policy edge cases — implement | AndroidX benchmark 100+ runs — implement | Measure dwell/completion in demo — implement | Final visual polish + iconography — implement | 
+06:00–06:15 | Fix calibration/policy edge cases — test/integrate | AndroidX benchmark 100+ runs — test/integrate | Measure dwell/completion in demo — test/integrate | Final visual polish + iconography — test/integrate | 
+06:15–06:30 | Fix calibration/policy edge cases — commit/hand-off | AndroidX benchmark 100+ runs — commit/hand-off | Measure dwell/completion in demo — commit/hand-off | Final visual polish + iconography — commit/hand-off | G5 benchmark/HCI
+06:30–06:45 | Generate final model/version manifest — plan/setup | Freeze build; hash APK/AAR/model — plan/setup | Write HCI evidence + judge explanation — plan/setup | Freeze UI resources and scenario assets — plan/setup | 
+06:45–07:00 | Generate final model/version manifest — implement | Freeze build; hash APK/AAR/model — implement | Write HCI evidence + judge explanation — implement | Freeze UI resources and scenario assets — implement | 
+07:00–07:15 | Generate final model/version manifest — test/integrate | Freeze build; hash APK/AAR/model — test/integrate | Write HCI evidence + judge explanation — test/integrate | Freeze UI resources and scenario assets — test/integrate | 
+07:15–07:30 | Generate final model/version manifest — commit/hand-off | Freeze build; hash APK/AAR/model — commit/hand-off | Write HCI evidence + judge explanation — commit/hand-off | Freeze UI resources and scenario assets — commit/hand-off | freeze candidates
+
+--- TABLE 49 ---
+Time | Trombokendu — Core AI | Aditya — Edge/SDK | Alaukik — HCI | Sneha — Warning UI | Gate
+07:30–07:45 | Write technical debug trace + Q&A notes — plan/setup | Create one-command install/start runbook — plan/setup | Freeze copy/resources — plan/setup | Screen-record fallback demo — plan/setup | 
+07:45–08:00 | Write technical debug trace + Q&A notes — implement | Create one-command install/start runbook — implement | Freeze copy/resources — implement | Screen-record fallback demo — implement | 
+08:00–08:15 | Write technical debug trace + Q&A notes — test/integrate | Create one-command install/start runbook — test/integrate | Freeze copy/resources — test/integrate | Screen-record fallback demo — test/integrate | 
+08:15–08:30 | Write technical debug trace + Q&A notes — commit/hand-off | Create one-command install/start runbook — commit/hand-off | Freeze copy/resources — commit/hand-off | Screen-record fallback demo — commit/hand-off | G6 package freeze
+08:30–08:45 | Freeze ML artifacts; no architecture changes — plan/setup | Final package copy + cold-start test — plan/setup | Presentation rehearsal; timing + Q&A — plan/setup | Presentation rehearsal + screen plan — plan/setup | 
+08:45–09:00 | Freeze ML artifacts; no architecture changes — implement | Final package copy + cold-start test — implement | Presentation rehearsal; timing + Q&A — implement | Presentation rehearsal + screen plan — implement | 
+09:00–09:15 | Freeze ML artifacts; no architecture changes — test/integrate | Final package copy + cold-start test — test/integrate | Presentation rehearsal; timing + Q&A — test/integrate | Presentation rehearsal + screen plan — test/integrate | 
+09:15–09:30 | Freeze ML artifacts; no architecture changes — commit/hand-off | Final package copy + cold-start test — commit/hand-off | Presentation rehearsal; timing + Q&A — commit/hand-off | Presentation rehearsal + screen plan — commit/hand-off | G7 rehearsal 1
+09:30–09:45 | Final rehearsal + technical narrative — plan/setup | Operate device during rehearsal — plan/setup | Final HCI spot-check — plan/setup | Operate warning/demo flow — plan/setup | 
+09:45–10:00 | Final rehearsal + technical narrative — implement | Operate device during rehearsal — implement | Final HCI spot-check — implement | Operate warning/demo flow — implement | 
+10:00–10:15 | Final rehearsal + technical narrative — test/integrate | Operate device during rehearsal — test/integrate | Final HCI spot-check — test/integrate | Operate warning/demo flow — test/integrate | 
+10:15–10:30 | Final rehearsal + technical narrative — commit/hand-off | Operate device during rehearsal — commit/hand-off | Final HCI spot-check — commit/hand-off | Operate warning/demo flow — commit/hand-off | rehearsal 2 + backup
+
+--- TABLE 50 ---
+Area | Test | Owner
+Contracts | Golden JSON fixture parses identically in Pydantic and Kotlin; unknown enum handling defined. | Trombokendu + Aditya
+Feature packer | Fixed feature order, missing masks, normalization; Python and Android produce same tensor. | Aditya
+JWS | valid, expired, wrong beneficiary, wrong session, tampered signature. | Aditya
+MoE | no NaNs; router weights sum ~1; top-k exactly <=2; expert ablation reproducible. | Trombokendu
+Belief | monotonic scenarios, decay, response updates, graph missing. | Trombokendu
+Conformal | coverage calculation and ambiguous set behavior. | Trombokendu
+Policy | forbidden action never selected; deterministic with frozen seed/config. | Trombokendu + Alaukik
+UI | every action ID maps to WarningSpec and typed response. | Sneha + Alaukik
+
+--- TABLE 51 ---
+Scenario | Injected/real signals | Pass condition
+BENIGN_01 | known payee, normal amount, no comm, clean/unknown access, low graph | No warning. Local trace fastPath=true. Payment continues.
+BENIGN_EDGE_02 | new payee + active call but low amount and low graph | At most A1/A2 depending policy; must not jump to A3 on call alone.
+AMBIG_01 | new payee, high amount, active communication, graph unavailable | Moderate friction; graphState=UNAVAILABLE; no silent downgrade.
+SCAM_01 | new payee, high amount, active comm, controlling/capture fixture, high mule graph | A3 Isolation Break selected before final authorization.
+SCAM_02 | same as above + response SOMEONE_DIRECTING | Escalates to A4/A5 per policy.
+OFFLINE_01 | network disabled | Local model still works; graph unknown; UI functional.
+REPLAY_01 | reuse stale safe risk token | Token rejected, reason code visible in debug.
+ACCESS_01 | verified accessibility fixture only | No A3 solely due to accessibility.
+
+--- TABLE 52 ---
+Metric | Method | Evidence file
+Model load cold | Measure SDK init with model load 20× after process restart | bench_model_load.json
+Warm local inference | AndroidX Benchmark ≥100 iterations after warm-up | bench_inference_<device>.json
+assess()+decide() | Full local path including feature/belief/policy | bench_pipeline_<device>.json
+Memory | Android Studio profiler / `dumpsys meminfo` at idle + active session | mem_<device>.txt
+AAR/APK size | Gradle artifact sizes | artifact_manifest.json
+Graph service latency | 100 local requests; p50/p95 | graph_latency.json
+False-friction proxy | Run benign replay set through integrated engine | replay_benign_metrics.json
+
+--- TABLE 53 ---
+Module | Primary | Secondary / sanity
+Edge Risk-MoE | PR-AUC, recall at fixed FPR, Brier/ECE calibration | fast-path rate, expert utilization, ablation.
+ST-GNN | PR-AUC, recall, time-split generalization | camouflage robustness, held-out-ring performance.
+Conformal | empirical coverage, average set size | abstention rate.
+Policy | prevented-loss proxy - friction cost | action distribution, prohibited-action violations=0.
+HCI | unnecessary-friction rate + comprehension | dwell time, cancel/verify success in scripted scam tasks.
+
+--- TABLE 54 ---
+Question | Answer
+“Is the GNN running on the phone?” | No. Relationship intelligence needs institution-scale graph data, so the heterogeneous ST-GNN runs institution-side. The phone receives only a signed short-lived risk assertion.
+“How is this offline?” | The critical agency model, belief update, uncertainty and action policy are local. Network/graph failure is represented explicitly; local friction still works.
+“How do you detect screen sharing?” | Production can use a host/backend verified app-access-risk signal from Play Integrity. It is not treated as an instant offline signal. In the hackathon we simulate that assertion unless live Play provisioning is available.
+“Why RL?” | RL/bandit is used to choose the least costly safe intervention, trained offline in a multi-agent scam digital twin. Runtime exploration is disabled.
+“Why not just block large payments?” | Because legitimate large payments exist. Vyuha fuses user-relative novelty, temporal context, device-access risk, beneficiary topology and uncertainty, then chooses proportional friction.
+“Is it just an LLM?” | No. No remote LLM is required. Core inference is small on-device neural models + graph learning + belief-state/policy. Local LLMs are optional only for offline adversarial simulation.
+
+--- TABLE 55 ---
+Symptom | Likely cause | First 3 actions | Owner
+Android build fails after ExecuTorch add | Dependency/ABI/Gradle mismatch | Pin stable AAR; check Maven resolution; temporarily restore fake runner while fixing. | Aditya
+Python and Android scores differ | Feature order/normalization/export mismatch | Compare golden tensor; dump first 32 values; verify model hash/normalization version. | Trombokendu + Aditya
+ST-GNN predicts everything safe | Class imbalance / leakage / wrong labels | Inspect label counts; train tabular baseline; overfit tiny subset; verify split. | Trombokendu
+ST-GNN predicts merchants as mules | Degree shortcut | Add merchant hard negatives/stable-hub feature; compare motif explanations. | Trombokendu
+Warnings trigger too often | Threshold/calibration/policy too aggressive | Run benign replay; inspect conformal ambiguity; lower action severity before changing model. | Trombokendu + Alaukik
+A3 can be bypassed by pressing “safe” | Interaction design flaw | Require remediation/cooldown before independent response; do not use yes/no alone. | Alaukik + Sneha
+Graph server unavailable | Process/port/network issue | Local path must still demo; restart service; show degraded behavior as resilience proof. | Trombokendu + Aditya
+UI lags | Main-thread inference / heavy animations | Move inference off UI; pre-load; disable nonessential animation. | Aditya + Sneha
+Demo depends on internet | Unpinned dependency/service | Cache artifacts; run localhost; use scenario fixtures; no cloud API. | All
+
+--- TABLE 56 ---
+Artifact | Path / output | Owner
+Android APK | apps/android-host/build/outputs/apk/debug/... | Aditya
+Vyuha AAR | sdk/android/.../build/outputs/aar/... | Aditya
+Edge model | artifacts/models/edge_model.pte | Trombokendu
+Edge metadata | feature_schema.json, normalization.json, calibration.json | Trombokendu
+ST-GNN model | artifacts/models/hstgnn.pt | Trombokendu
+Graph data fixtures | artifacts/data/graph_demo/* | Trombokendu
+Policy | policy.json + action_catalogue.json | Trombokendu + Alaukik
+Warning resources | Android resource bundle / WarningSpec mapping | Sneha + Alaukik
+Benchmarks | artifacts/benchmarks/* | Aditya
+ML evaluation | artifacts/metrics/* | Trombokendu
+HCI test sheet | artifacts/hci/* | Alaukik
+Demo runbook | docs/demo-runbook.md | Sneha + Aditya
+TRD/PRD/PPT | docs/submission/* | Team lead final check
+
+--- TABLE 57 ---
+# infra/scripts/start_demo.sh
+set -e
+source .venv/bin/activate
+uvicorn services.graph-risk.app:app --host 127.0.0.1 --port 8081 &
+GRAPH_PID=$!
+
+# Optional dashboard
+# (cd apps/web-dashboard && npm run dev -- --host 127.0.0.1) &
+
+# Android device must reach the laptop service via adb reverse
+adb reverse tcp:8081 tcp:8081
+adb install -r apps/android-host/build/outputs/apk/debug/android-host-debug.apk
+
+echo "Graph service PID=$GRAPH_PID; launch Vyuha Host on device."
+
+--- TABLE 58 ---
+Req ID | Requirement | Verification | Owner
+TRD-P0-01 | Critical local decision works with network disabled | OFFLINE_01 + device demo | Aditya
+TRD-P0-02 | Graph model is institution-side and returns signed risk token | graph API + token verify fixtures | Trombokendu/Aditya
+TRD-P0-03 | No generic Android overlay dependency | Host Compose integration | Sneha/Aditya
+TRD-P0-04 | No raw audio/screen/chat/PIN ingestion | Code review + data inventory | All
+TRD-P0-05 | Sparse Risk-MoE genuinely executes conditional experts | debug expert/router trace | Trombokendu
+TRD-P0-06 | Belief state accumulates sequential evidence | SCAM_01 timeline | Trombokendu
+TRD-P0-07 | Uncertainty can abstain / reduce action | ambiguous replay | Trombokendu/Alaukik
+TRD-P0-08 | Policy uses constrained action catalogue, no runtime exploration | policy unit tests | Trombokendu/Alaukik
+TRD-P0-09 | Isolation Break cannot be reduced to a yes/no popup | A3 HCI flow | Alaukik/Sneha
+TRD-P0-10 | SDK packaged as consumable AAR | mavenLocal host build | Aditya
+TRD-P0-11 | Measured local latency artifact exists | Android benchmark JSON | Aditya
+TRD-P0-12 | Synthetic data/model limitations disclosed | DATA_CARD/MODEL_CARD/PPT | Trombokendu
+TRD-P1-13 | Safety Circle minimal-disclosure flow | UI + HCI review | Alaukik/Sneha
+TRD-P1-14 | Live debug view shows model/version/reason trace | engineering dashboard | Sneha/Trombokendu
+
+--- TABLE 59 ---
+Final acceptance — A clean install can reproduce one benign flow with no warning and one coercion flow where actual local inference + actual graph service + belief/uncertainty + frozen policy produce a stronger intervention. The system survives graph-service loss, the AAR/package is real, measured benchmark artifacts exist, and every simulated signal is labelled.
+
+--- TABLE 60 ---
+Check | Pass?
+Graph service starts locally with no internet | □
+APK installs from clean device state | □
+AAR consumed as artifact | □
+BENIGN_01 silent pass | □
+SCAM_01 A3 Isolation Break | □
+Graph-offline degraded flow | □
+Expired token rejected | □
+Measured latency file present | □
+Model + policy + config hashes recorded | □
+All synthetic signals labelled in debug/presentation | □
+No API key/cloud LLM needed | □
+Backup screen recording available | □
+PRD/TRD/PPT/source copied to two locations | □
+
+--- TABLE 61 ---
+Minute | Lead | Question
+0–1 | Trombokendu | Are schemas/model/action IDs frozen? Any change after this point requires team consent.
+1–2 | Aditya | Can APK install, model load and local inference run with graph server stopped?
+2–3 | Trombokendu | Can graph service score both benign and mule fixtures and sign token?
+3–4 | Sneha | Do A0/A1/A2/A3/A4 screens all render without dead button or layout issue?
+4–5 | Alaukik | Does high-risk flow break synchronous control instead of asking only a coached yes/no?
+5–6 | Aditya | What is measured p95 local latency and exact device/build hash?
+6–7 | Trombokendu | Do debug trace and model versions match artifacts?
+7–8 | All | Run BENIGN_01. Any unexpected warning = stop and fix.
+8–9 | All | Run SCAM_01. Any missing A3/graph/belief transition = stop and fix.
+9–10 | Team lead | Freeze. Copy artifacts. No refactor. Rehearse presentation.

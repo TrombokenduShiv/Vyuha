@@ -1,0 +1,41 @@
+{
+  "": "http://json-schema.org/draft-07/schema#",
+  "title": "SafetyCircleEvent",
+  "type": "object",
+  "properties": {
+    "session_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "timestamp_ms": {
+      "type": "integer"
+    },
+    "escalation_level": {
+      "type": "string",
+      "enum": [
+        "PRIMARY",
+        "SECONDARY",
+        "BANK_FRAUD_DESK"
+      ]
+    },
+    "message_template_id": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "PENDING",
+        "ACKNOWLEDGED",
+        "VERIFIED_SAFE",
+        "VERIFIED_RISK",
+        "TIMEOUT"
+      ]
+    }
+  },
+  "required": [
+    "session_id",
+    "timestamp_ms",
+    "escalation_level",
+    "status"
+  ]
+}

@@ -1,0 +1,53 @@
+Script for Vyuha (~4:00 or less) 
+[0:00–0:10] — No speaker. Visual: black screen. Audio: Tony Stark clip — "We create our own 
+demons." Text overlay fades in under it: VYUHA. 
+[0:12–0:32] — Team Introduction. (Trombokendu) 
+"And that’s why The Syndicates present you “Vyuha: Edge-AI Behavioral Defense SDK 
+for Real-Time Coercion Interception and Mule Ring Neutralization”. Now too many 
+buzz words over here. ​
+So let’s get to know what it is basically and above all why is it?" 
+[[Black Screen: Text: “The Problem Statement”]] 
+[0:32–1:25] — Problem Statement. {Slide and front camera overlay} {Slide 3} (Sneha) 
+"India logged 28.15 lakh cyber-fraud cases last year. The fastest-growing and cruelest 
+is the 'digital arrest',  fraudsters pose as police on video calls, isolate victims for hours, 
+and coerce them into paying with their own hands, their own correct PIN. It hits 
+anyone, retirees, students, professionals,  because the fraud isn't in the transaction. 
+It's in the hours before it. And no bank app is watching those hours." 
+Then Explain Points in Slide 3 in short but address all points… 
+[[Black Screen: Text: “Our Approach”]] 
+[1:25–2:05] — Approached Solution. {Slide and front camera overlay} {Slide 4} (Alaukik) 
+"Vyuha is an Edge-AI behavioral shield built into where this money actually moves, 
+UPI and banking apps, not e-commerce checkouts. It rides the same real-time 
+channel banks already use for RBI's Financial Fraud Risk Indicator, and adds what 
+that system can't see: your own behavioral state, right now. On-device, Vyuha notices 
+the pattern, a long, active call, a suddenly opened UPI screen, and steps in before the 
+PIN. It doesn't block you. It asks: 'Is someone on this call directing this payment?' 
+Only if the answer says yes,  or there's no answer at all,  does it bring a trusted contact 
+in, breaking the isolation the scam depends on." 
+Then Explain Points in Slide 4 in short but address all points… 
+[[Black Screen: Text: “How do we do that?”]] 
+[2:05–3:00] — Technical Overview. {Slide and front camera overlay} {Slide 5, 6} (Trombokendu) 
+"Underneath, it's a stateful OODA loop orchestrated with LangGraph. A lightweight 
+on-device router triages telemetry and clears roughly 95% of normal activity 
+instantly. Flagged sessions go to a Spatio-Temporal Graph Neural Network, built on 
+PyTorch Geometric, checking the receiving account against known mule-ring 
+patterns — the same graph-based approach behind RBI's own MuleHunter.AI. A 
+
+contextual bandit then picks the lightest friction that actually breaks the trance, and 
+learns from every real response." 
+Then Explain Points in Slide 5, 6 in short but address all points… 
+[[Black Screen: Text: “Impact & Profit”]] 
+[3:00–3:35] — Impact & Benefits & Business Model. {Slide and front camera overlay} {Slide 7, 8} 
+(Aditya) 
+"For banks and UPI providers, Vyuha cuts chargeback losses by catching fraud before 
+settlement, not after. For everyday Indians, especially senior citizens, the most 
+targeted group,  it's a bodyguard that never sleeps, invisible until the one moment it's 
+needed, without slowing down a single genuine payment." 
+Then Explain Points in Slide 7, 8 in short but address all points… 
+[[Black Screen: Text: “Closing”]] 
+[3:35–3:55] — Close. {Black Screen. Only Audio} (Trombokendu) 
+We make this entire system strictly scrutinised and far away from a simple “Scam 
+Detector”. Because “Prevention is better than cure” also because 
+Audio: Tony Stark clip — "A famous person once said. We create our own demons"  
+ 
+

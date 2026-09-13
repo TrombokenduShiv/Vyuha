@@ -1,0 +1,48 @@
+{
+  "": "http://json-schema.org/draft-07/schema#",
+  "title": "EdgeRiskOutput",
+  "type": "object",
+  "properties": {
+    "session_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "timestamp_ms": {
+      "type": "integer"
+    },
+    "triage_score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "is_sparse_routed": {
+      "type": "boolean"
+    },
+    "expert_scores": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "expert_id": {
+            "type": "string"
+          },
+          "score": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "required": [
+          "expert_id",
+          "score"
+        ]
+      }
+    }
+  },
+  "required": [
+    "session_id",
+    "timestamp_ms",
+    "triage_score",
+    "expert_scores"
+  ]
+}

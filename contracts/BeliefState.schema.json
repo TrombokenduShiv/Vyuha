@@ -1,0 +1,61 @@
+{
+  "": "http://json-schema.org/draft-07/schema#",
+  "title": "BeliefState",
+  "type": "object",
+  "properties": {
+    "session_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "timestamp_ms": {
+      "type": "integer"
+    },
+    "p_coercion": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "uncertainty_set": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "SAFE",
+          "RISK",
+          "ABSTAIN"
+        ]
+      }
+    },
+    "missing_evidence_mask": {
+      "type": "object",
+      "properties": {
+        "graph_missing": {
+          "type": "boolean"
+        },
+        "baseline_missing": {
+          "type": "boolean"
+        },
+        "device_missing": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "graph_missing",
+        "baseline_missing",
+        "device_missing"
+      ]
+    },
+    "event_sequence_length": {
+      "type": "integer",
+      "minimum": 0
+    }
+  },
+  "required": [
+    "session_id",
+    "timestamp_ms",
+    "p_coercion",
+    "uncertainty_set",
+    "missing_evidence_mask",
+    "event_sequence_length"
+  ]
+}

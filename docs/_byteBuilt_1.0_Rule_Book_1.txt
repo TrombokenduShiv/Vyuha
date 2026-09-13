@@ -1,0 +1,529 @@
+ 
+ 
+ 
+ 
+Organized by: byteXL & Chandigarh University​
+Mode: Offline (24-Hour Hackathon)​
+Venue: Room 101, C3 Block, Chandigarh University, Mohali 
+ 
+ 
+About the Hackathon 
+byteBuilt 1.0 is a 24-hour innovation hackathon where all college students collaborate to solve 
+real-world problems by building creative and practical technology solutions. 
+Participants will work in teams to identify a problem, design an innovative solution, build a 
+prototype or proof of concept, and present it before an expert jury. 
+ 
+Who Can Participate? 
+●​
+Open for All University/College students.. 
+●​
+Team Size: 
+○​
+Minimum: 3 Members 
+○​
+Maximum: 4 Members 
+●​
+Teams can be self-formed. 
+●​
+Every team must choose a unique team name. 
+ 
+ 
+ 
+                                                                                                                              Organized by                                          & 
+ 
+
+ 
+        Themes And Sample Problem Statement 
+                
+Domain 
+Sub-Domain 
+Expected Outcome 
+AI for 
+Business 
+Predictive Analytics & Forecasting 
+Data-driven models that anticipate business outcomes 
+(demand, churn, risk) ahead of time, enabling proactive 
+decisions instead of reactive ones. 
+ 
+Fraud & Risk Detection 
+Systems that identify anomalous or risky behavior in 
+transactions/operations in near real-time, reducing losses 
+without over-flagging genuine users. 
+ 
+Process & Document Automation 
+AI tools that automate repetitive screening, evaluation, or 
+documentation tasks, cutting manual effort and improving 
+consistency. 
+ 
+Customer Intelligence & Personalization 
+Solutions that understand customer behavior/needs to 
+enable targeted, cost-effective engagement and retention 
+strategies. 
+AI for 
+Everyday 
+India 
+Agriculture & Rural Livelihoods 
+AI tools that give farmers timely, accessible information 
+(prices, crop health) in their own language, improving 
+income and reducing losses. 
+ 
+Urban Mobility & Infrastructure 
+Predictive systems that ease traffic, congestion, or 
+infrastructure strain in fast-growing cities through 
+data-driven planning. 
+ 
+Public Service Accessibility 
+Conversational or low-bandwidth tools that simplify 
+citizens' access to government schemes and services, 
+especially in regional languages. 
+ 
+Regional Language & Voice AI 
+AI interfaces that work in local languages and voice, 
+making technology usable for non-English-fluent or 
+low-literacy users. 
+AI in 
+Education 
+Personalized & Adaptive Learning 
+Systems that adjust content and pace to each student's 
+level, improving learning outcomes despite large class 
+sizes. 
+ 
+Assessment & Evaluation Automation 
+Tools that grade or assess student work fairly and 
+consistently, reducing evaluator workload and bias. 
+ 
+Student Support & Retention 
+Early-warning systems that identify at-risk students and 
+guide appropriate academic, financial, or counselling 
+interventions. 
+ 
+Intelligent Tutoring Systems 
+AI assistants that resolve student doubts on demand and 
+identify recurring conceptual gaps over time. 
+AI for 
+Healthcare 
+Clinical Decision Support 
+AI systems that help clinicians make safer, faster 
+decisions — e.g., flagging drug interactions or diagnostic 
+risks. 
+ 
+Patient Monitoring & Diagnostics 
+Continuous or image-based monitoring tools that detect 
+ 
+ 
+                                                                                                                              Organized by                                          & 
+ 
+
+ 
+early warning signs and reduce unnecessary alert load on 
+care teams. 
+ 
+Health Records & Data Security 
+Secure, tamper-evident systems for managing and 
+sharing patient data across providers while protecting 
+against misuse. 
+ 
+Medical Documentation Automation 
+AI tools that convert clinical conversations into structured 
+records, reducing physician administrative burden. 
+ 
+Hackathon Flow 
+Phase 1 – Registration & Idea Submission 
+●​
+Register your team through the official registration portal. 
+●​
+Submit the team details. 
+●​
+Submit a Pitch Deck (PPT) explaining your idea. 
+●​
+Each team may submit only one idea. 
+●​
+Ensure that the idea is original and aligns with the hackathon themes. 
+●​
+More than 100 teams are expected to participate.
+ 
+Phase 2 – Shortlisting 
+Based on the submitted Pitch Decks, the Top 60 teams will be shortlisted for the next round.
+ 
+Phase 3 – Project Video Submission 
+The shortlisted teams must submit a project presentation video demonstrating their             
+proposed solution. 
+Video Specifications 
+●​
+Duration: Minimum 2 minutes and  maximum 4 minutes. 
+●​
+Format: MP4 
+●​
+Resolution: 1080p (Full HD) preferred (Minimum: 720p HD) 
+●​
+Orientation: Landscape (16:9) 
+●​
+Frame Rate: Minimum 24 FPS 
+●​
+Audio: Clear and audible with minimal background noise. 
+●​
+Language: English (preferred) or English with subtitles if required. 
+ 
+ 
+                                                                                                                              Organized by                                          & 
+ 
+
+ 
+Note: Please upload an unlisted youtube link in google form provided after the selection process. 
+Video Quality Guidelines 
+●​
+Ensure the video is well-lit and clearly visible. 
+●​
+Use a stable camera or tripod to avoid shaky footage. 
+●​
+Record in a quiet environment with clear audio. 
+●​
+Screen recordings should be high resolution so that the prototype and UI are easy to read. 
+●​
+Avoid excessive background music or distracting visual effects. 
+●​
+Ensure all team members are clearly visible and audible while presenting their respective 
+contributions. 
+●​
+Verify that the video plays correctly before submission. 
+The Project Video Should Cover: 
+1.​
+Team Introduction 
+i.​
+Team name 
+ii.​ Member introductions 
+iii.​ Individual roles and responsibilities 
+2.​
+Problem Statement 
+i.​
+What problem are you solving? 
+ii.​ Why is this problem important? 
+3.​
+Proposed Solution 
+i.​
+Explain your idea clearly. 
+ii.​ Highlight the uniqueness and innovation. 
+4.​
+Technology Stack 
+i.​
+Tools, programming languages, frameworks, APIs, or AI tools used. 
+5.​
+Expected Impact 
+i.​
+Who will benefit from your solution? 
+ii.​ What real-world impact can it create? 
+6.​
+Future Scope 
+i.​
+Possible enhancements and scalability of the project. 
+Based on the project videos, the Top 40 teams will be selected for the Grand Finale(In Person) at 
+Chandigarh University, Mohali. 
+ 
+Phase 4 – Grand Finale (24 Hours) 
+The shortlisted teams will participate in a 24-hour hackathon, where they will: 
+●​
+Build and refine their prototype. 
+●​
+Enhance features and functionality. 
+ 
+ 
+                                                                                                                              Organized by                                          & 
+ 
+
+ 
+●​
+Receive mentorship from industry experts. 
+●​
+Prepare the final project demonstration and presentation. 
+ 
+ 
+Phase 5 – Final Presentation 
+Each team will present their solution before the jury. 
+Presentation Format 
+Presentation and Jury Q&A : Maximum 7 minutes for presentation and 3 minutes for Q&A. 
+The jury will evaluate the projects based on innovation, impact, feasibility, prototype quality, and 
+presentation before announcing the winners. 
+ 
+Technologies You Can Use 
+Participants are free to use any suitable technology. 
+Examples include: 
+Category 
+Technologies / Tools 
+Programming Languages 
+Python, Java, C/C++, JavaScript 
+Frontend & Design 
+HTML, CSS, JavaScript, Figma, Canva, PowerPoint 
+Development Tools 
+VS Code, Cursor, GitHub 
+AI Tools (Allowed) 
+ChatGPT, GitHub Copilot, Cursor AI, Other AI productivity tools 
+Note: AI tools may assist you, but your solution, implementation, and presentation must represent 
+your team's original work. 
+ 
+ 
+ 
+                                                                                                                              Organized by                                          & 
+ 
+
+ 
+ 
+ 
+ 
+                                                                                                                              Organized by                                          & 
+ 
+
+ 
+Submission Requirements 
+Each shortlisted team must submit: 
+●​
+Prototype / Working Model 
+●​
+Source Code 
+●​
+Presentation (PPT) 
+●​
+Documentation 
+ 
+Judging Criteria 
+Projects will be evaluated by an expert jury based on the following criteria: 
+Evaluation Criteria 
+Description 
+Marks 
+Innovation 
+Originality of the idea, creativity, uniqueness of the 
+solution, and the team's approach to solving the problem. 
+25 
+Impact 
+Relevance of the problem, potential social or business 
+impact, scalability, and overall value of the solution. 
+25 
+Feasibility 
+Technical feasibility, practicality of implementation, 
+resource requirements, and sustainability of the 
+proposed solution. 
+20 
+Prototype Quality 
+Functionality, user experience, completeness of the 
+prototype, technical implementation, and overall quality. 
+20 
+Presentation & Q&A 
+Clarity of presentation, communication skills, 
+demonstration, time management, and ability to answer 
+judges' questions effectively. 
+10 
+Total 
+  
+100 
+​
+Note: The decision of the jury will be final and binding. No requests for re-evaluation or score 
+revisions will be entertained. 
+ 
+ 
+ 
+                                                                                                                              Organized by                                          & 
+ 
+
+ 
+Event Rules 
+General Rules 
+●​
+Participation is allowed only in registered teams. 
+●​
+One idea per team. 
+●​
+All work must be completed during the hackathon. 
+●​
+Every member should actively contribute. 
+●​
+Teams must follow the event schedule. 
+●​
+Maintain professional behaviour throughout the event. 
+ 
+Originality 
+●​
+Projects must be original. 
+●​
+Plagiarism is strictly prohibited. 
+●​
+Existing projects cannot be submitted. 
+●​
+If inspiration is taken from another source, proper credit must be provided. 
+ 
+Use of AI 
+AI tools are permitted for: 
+●​
+Research 
+●​
+Brainstorming 
+●​
+Coding assistance 
+●​
+UI generation 
+●​
+Documentation support 
+However, teams must understand and explain every part of their solution.
+ 
+ 
+ 
+                                                                                                                              Organized by                                          & 
+ 
+
+ 
+​
+Event Day Timeline (24-Hour Hackathon) 
+Time 
+Activity 
+09:00 AM – 09:30 AM 
+Registration & Check-in – Participant 
+verification, kit distribution, and seating. 
+09:30 AM – 10:00 AM 
+Event Kick-off & Briefing – Welcome address, hackathon 
+guidelines, judging criteria, rules, and introduction of 
+mentors and jury members. 
+10:00 AM – 10:30 AM 
+Problem Statement Briefing & Team Setup – 
+Final instructions, environment setup, and clarification 
+session. 
+10:30 AM 
+Hackathon Officially Begins 
+11:00 AM – 01:00 PM 
+Ideation, planning, and initial prototype development. 
+01:00 PM – 02:00 PM 
+Lunch Break 
+02:00 PM – 07:00 PM 
+Prototype development, mentor interactions, and 
+progress reviews. 
+07:00 PM – 08:00 PM 
+Dinner Break 
+08:00 PM – 12:00 AM 
+Continued development, testing, debugging, and feature 
+implementation. 
+12:00 AM – 07:00 AM 
+Overnight development with mentor support and periodic 
+check-ins. 
+07:00 AM – 08:00 AM 
+Breakfast Break 
+08:00 AM – 09:30 AM 
+Final testing, documentation, presentation preparation, 
+and project submission. 
+09:30 AM 
+Project Submission Deadline 
+09:45 AM – 11:15 AM 
+Final Presentations to the Jury (Session 1) – Each team 
+will have 10 minutes to present and demonstrate their 
+solution, followed by Q&A from the judging panel.  
+11:15 AM - 11:35 AM 
+Tea Break  
+11:35 AM – 01:45 PM  
+Final Presentations to the Jury (Session 2) – Remaining 
+teams present their solutions to the judging panel.  
+01:45 PM – 02:15 PM 
+Prize Distribution & Closing Ceremony – Announcement 
+of winners, trophy and medal distribution, certificate 
+distribution, and closing remarks. 
+ 
+ 
+                                                                                                                              Organized by                                          & 
+ 
+
+ 
+02:15 PM 
+Event Concludes 
+ What to Bring 
+We Recommend participants to carry: 
+●​
+Laptop( Mandatory ) 
+●​
+Laptop Charger( Mandatory ) 
+●​
+Student ID Card( Mandatory ) 
+●​
+Mobile Charger 
+●​
+Power Bank  
+●​
+Water Bottle 
+●​
+Required Software Installed Before the Event 
+Code of Conduct 
+Participants are expected to: 
+●​
+Respect fellow participants, judges, mentors, and organizers. 
+●​
+Follow all event instructions. 
+●​
+Avoid any unfair practices. 
+●​
+Maintain discipline throughout the event. 
+Violation of rules may result in disqualification.​
+​
+​
+Overall Timeline 
+Stage 
+Activity 
+Dates  
+Stage 0 
+Registration Starts 
+27 July 
+Stage 1 
+Team Formation and Pitch Deck submission 
+28 July - 20 Aug 
+Stage 2 
+Team Shortlisting   
+21 Aug - 25 Aug 
+Stage 3 
+Video Submission 
+26 Aug - 1 Sep 
+Stage 4 
+Final Shortlisting  
+2 Sep - 6 Sep 
+Stage 5 
+Inter Students Arrival  
+Before or On ​
+14 Sep 
+Stage 6 
+Final Prototype Development 
+14th Sep  
+ 
+ 
+                                                                                                                              Organized by                                          & 
+ 
+
+ 
+Stage 7 
+Final Presentation and Judging 
+15th Sep  
+Post-Event 
+Results Announcement and Awards 
+15th Sep 
+Prize Pool 
+Position 
+Prize Money 
+Trophy 
+Certificate 
+🥇 First Prize 
+₹75,000 
+✅ 
+✅ 
+🥈 Second Prize 
+₹45,000 
+✅ 
+✅ 
+🥉 Third Prize 
+₹30,000 
+✅ 
+✅ 
+Participation Certificate 
+Every eligible participant will receive a Digital Certificate. 
+Important Note 
+Only the Top 40 shortlisted teams will participate in the Offline 24-Hour Grand Finale. 
+We encourage every participant to think creatively, build responsibly, and focus on solving real-world 
+challenges. 
+ 
+ 
+ 
+ 
+ 
+                                                                                                                              Organized by                                          & 
+ 
+
