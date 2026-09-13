@@ -4,6 +4,9 @@
  * These Kotlin data classes map 1:1 to the JSON schemas in contracts/.
  * NO module may communicate through ad-hoc dictionaries.
  * Any schema change requires updating both this file AND contracts/.
+ *
+ * Type convention: All scores use Double for numerical precision
+ * consistency with the Python backend and JSON schema definitions.
  */
 package com.vyuha.sdk.contracts
 
@@ -39,7 +42,7 @@ enum class GroundTruthLabel { FRAUD, LEGITIMATE, UNKNOWN }
 
 data class TransactionContext(
     val amountBucket: AmountBucket,
-    val beneficiaryNovelty: Float,
+    val beneficiaryNovelty: Double,
     val channel: String = "UPI"
 )
 
@@ -53,7 +56,7 @@ data class DeviceContext(
 )
 
 data class BaselineContext(
-    val deviationScore: Float
+    val deviationScore: Double
 )
 
 data class ContextSnapshot(
@@ -62,20 +65,22 @@ data class ContextSnapshot(
     val transaction: TransactionContext,
     val communication: CommunicationContext,
     val device: DeviceContext,
-    val baseline: BaselineContext
+    val baseline: BaselineContext,
+    /** Injected from GraphRiskToken when available; null if offline / missing. */
+    val graphRiskToken: GraphRiskToken? = null
 )
 
 // ── EdgeRiskOutput (contracts/EdgeRiskOutput.schema.json) ───────────
 
 data class ExpertScore(
     val expertId: String,
-    val score: Float
+    val score: Double
 )
 
 data class EdgeRiskOutput(
     val sessionId: String,
     val timestampMs: Long = System.currentTimeMillis(),
-    val triageScore: Float,
+    val triageScore: Double,
     val isSparseRouted: Boolean = true,
     val expertScores: List<ExpertScore>
 )
@@ -84,8 +89,8 @@ data class EdgeRiskOutput(
 
 data class GraphRiskToken(
     val vpaHash: String,
-    val riskScore: Float,
-    val confidence: Float,
+    val riskScore: Double,
+    val confidence: Double,
     val reasonCodes: List<String>,
     val issuedAt: Long,
     val expiresAt: Long,
@@ -104,9 +109,13 @@ data class MissingEvidenceMask(
 data class BeliefState(
     val sessionId: String,
     val timestampMs: Long = System.currentTimeMillis(),
-    val pCoercion: Float,
+    /** P(Coercion | observations so far), range [0, 1]. */
+    val pCoercion: Double,
+    /** Conformal prediction set, e.g. [SAFE], [RISK], [SAFE, RISK, ABSTAIN]. */
     val uncertaintySet: List<UncertaintyLabel>,
+    /** Indicates which evidence sources were unavailable during this evaluation. */
     val missingEvidenceMask: MissingEvidenceMask,
+    /** Number of events processed in this session so far. */
     val eventSequenceLength: Int
 )
 
@@ -116,8 +125,8 @@ data class InterventionDecision(
     val sessionId: String,
     val timestampMs: Long = System.currentTimeMillis(),
     val actionId: ActionId,
-    val beliefScore: Float,
-    val uncertainty: Float,
+    val beliefScore: Double,
+    val uncertainty: Double,
     val reasonCodes: List<String>
 )
 

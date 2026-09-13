@@ -4,6 +4,9 @@
  * Scores the ContextSnapshot to decide if deeper expert routing is needed.
  * In production: replaced by a lightweight MLP on ExecuTorch.
  * Here: deterministic logic that maps known risk signals to a triage score.
+ *
+ * Architecture ref: ARCHITECTURE_FREEZE_V1 §7 — ML Inference Path, Step 3.
+ * Latency budget: < 2 ms (per §13).
  */
 package com.vyuha.sdk.pipeline
 
@@ -11,49 +14,63 @@ import com.vyuha.sdk.contracts.*
 
 class TriageGate {
 
+    companion object {
+        /** Threshold above which deeper expert evaluation is triggered. */
+        const val TRIAGE_THRESHOLD = 0.3
+    }
+
     /**
      * Returns a triage score in [0, 1].
-     * Score > 0.3 triggers sparse expert routing.
+     * Score > TRIAGE_THRESHOLD triggers sparse expert routing (Top-K=2).
+     *
+     * Deterministic signal weights:
+     * - Communication risk (active call): 0.35
+     * - Transaction amount (HIGH/CRITICAL): 0.15
+     * - Beneficiary novelty (> 0.7): 0.10
+     * - Device capture risk: 0.15
+     * - Device overlay risk: 0.10
+     * - Baseline deviation (> 0.5): 0.10
+     * - Graph risk (> 0.7): 0.20
      */
     fun evaluate(snapshot: ContextSnapshot, graphToken: GraphRiskToken?): EdgeRiskOutput {
-        var score = 0.0f
+        var score = 0.0
 
         // Communication risk: active call during payment is a strong signal
-        if (snapshot.communication.active) score += 0.35f
+        if (snapshot.communication.active) score += 0.35
 
         // Transaction risk: high amount + novel beneficiary
         if (snapshot.transaction.amountBucket == AmountBucket.HIGH ||
             snapshot.transaction.amountBucket == AmountBucket.CRITICAL) {
-            score += 0.15f
+            score += 0.15
         }
-        if (snapshot.transaction.beneficiaryNovelty > 0.7f) score += 0.10f
+        if (snapshot.transaction.beneficiaryNovelty > 0.7) score += 0.10
 
         // Device risk: screen capture or overlay
-        if (snapshot.device.captureRisk) score += 0.15f
-        if (snapshot.device.overlayRisk) score += 0.10f
+        if (snapshot.device.captureRisk) score += 0.15
+        if (snapshot.device.overlayRisk) score += 0.10
 
         // Baseline deviation
-        if (snapshot.baseline.deviationScore > 0.5f) score += 0.10f
+        if (snapshot.baseline.deviationScore > 0.5) score += 0.10
 
         // Graph risk (if available)
-        if (graphToken != null && graphToken.riskScore > 0.7f) score += 0.20f
+        if (graphToken != null && graphToken.riskScore > 0.7) score += 0.20
 
-        score = score.coerceIn(0.0f, 1.0f)
+        score = score.coerceIn(0.0, 1.0)
 
         // Build expert scores (mock: derive from sub-signals)
         val experts = mutableListOf<ExpertScore>()
-        if (score > 0.3f) {
+        if (score > TRIAGE_THRESHOLD) {
             // Top-K=2 sparse routing
             if (snapshot.communication.active) {
-                experts.add(ExpertScore("communication_expert", 0.35f + (graphToken?.riskScore ?: 0f) * 0.3f))
+                experts.add(ExpertScore("communication_expert", 0.35 + (graphToken?.riskScore ?: 0.0) * 0.3))
             }
-            if (snapshot.transaction.beneficiaryNovelty > 0.5f) {
-                experts.add(ExpertScore("transaction_expert", snapshot.transaction.beneficiaryNovelty * 0.8f))
+            if (snapshot.transaction.beneficiaryNovelty > 0.5) {
+                experts.add(ExpertScore("transaction_expert", snapshot.transaction.beneficiaryNovelty * 0.8))
             }
             if (snapshot.device.captureRisk || snapshot.device.overlayRisk) {
-                experts.add(ExpertScore("device_expert", if (snapshot.device.captureRisk) 0.7f else 0.4f))
+                experts.add(ExpertScore("device_expert", if (snapshot.device.captureRisk) 0.7 else 0.4))
             }
-            if (snapshot.baseline.deviationScore > 0.3f) {
+            if (snapshot.baseline.deviationScore > 0.3) {
                 experts.add(ExpertScore("baseline_expert", snapshot.baseline.deviationScore))
             }
             // Keep only top-2

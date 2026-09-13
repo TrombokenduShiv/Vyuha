@@ -3,6 +3,9 @@
  * ===============================
  * Drives the two vertical slices from the UI layer.
  * Manages the Vyuha Session lifecycle and exposes pipeline state to Compose.
+ *
+ * Slice 0: Golden Path (known payee, benign context → A0_PASS)
+ * Slice 1: Coercion Scenario (unknown VPA + active call → A4+ intervention)
  */
 package com.vyuha.demo
 
@@ -125,7 +128,7 @@ class PaymentViewModel : ViewModel() {
                 overlayRisk = false
             )
 
-            // Re-evaluate
+            // Re-evaluate via recordResponse
             val newDecision = session.recordResponse(response)
 
             if (newDecision.actionId == ActionId.A0_PASS) {
