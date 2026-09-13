@@ -77,5 +77,5 @@ Deploy the resulting APK to a physical Android device or emulator running API 26
 4. **Offline Mode:** Disconnect the device from the internet. Try the flows again. Vyuha will fail-safe, gracefully substituting the graph signal with `UNKNOWN` and maintaining local behavioral protection.
 
 ---
-**Team Syndicate:** Trombokendu, Sneha, Aditya, Alaukik
+**Team The Syndicates:** Trombokendu, Sneha, Aditya, Alaukik
 *(Built for ByteBuilt 1.0)*
