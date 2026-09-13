@@ -226,7 +226,7 @@ class Session internal constructor(
 
         return OutcomeFeedback(
             sessionId = sessionId,
-            actionId = lastDecision?.action ?: "UNKNOWN",
+            actionId = lastDecision?.actionId?.name ?: "UNKNOWN",
             userResponse = UserResponse.NONE,
             finalStatus = finalStatus
         )

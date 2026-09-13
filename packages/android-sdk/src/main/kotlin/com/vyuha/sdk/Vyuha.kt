@@ -91,7 +91,7 @@ class Vyuha private constructor(
          * @param channel Payment channel (default "UPI").
          * @return A [Session] handle for the active transaction.
          */
-        fun beginPayment(
+        internal fun beginPaymentInternal(
             vpaHash: String,
             amountBucket: AmountBucket,
             beneficiaryNovelty: Double,
@@ -111,6 +111,42 @@ class Vyuha private constructor(
                 initialChannel = channel,
                 initialGraphToken = graphToken
             )
+        }
+
+        // ── Clean Public API ────────────────────────────────────────
+
+        /**
+         * Begin a new payment session.
+         *
+         * This is the primary entry point for host bank apps.
+         * The SDK handles VPA hashing, amount bucketing, and novelty
+         * estimation internally — the bank app just provides raw values.
+         *
+         * Usage:
+         *   val session = Vyuha.beginPayment(TransactionInput(
+         *       payeeVpa = "merchant@upi",
+         *       amountInr = 5000.0,
+         *       payeeName = "Ravi Kumar"
+         *   ))
+         *   session.observe(DeviceSignals(isOnCall = false))
+         *   val verdict = session.evaluate()
+         *
+         * @param transaction The transaction details.
+         * @return A [VyuhaSession] handle for the active payment.
+         */
+        fun beginPayment(transaction: TransactionInput): VyuhaSession {
+            val vpaHash = VyuhaSession.hashVpa(transaction.payeeVpa)
+            val amountBucket = VyuhaSession.bucketizeAmount(transaction.amountInr)
+            val novelty = VyuhaSession.estimateNovelty(vpaHash)
+
+            val internalSession = beginPaymentInternal(
+                vpaHash = vpaHash,
+                amountBucket = amountBucket,
+                beneficiaryNovelty = novelty,
+                channel = transaction.channel
+            )
+
+            return VyuhaSession(internalSession, transaction)
         }
 
         /**

@@ -3,8 +3,9 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
+        android:name=".DemoBankApplication"
         android:allowBackup="false"
-        android:label="VyuhaBank"
+        android:label="DemoBank"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
         android:usesCleartextTraffic="true">
