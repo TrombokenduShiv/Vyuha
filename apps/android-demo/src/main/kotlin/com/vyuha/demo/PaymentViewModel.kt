@@ -25,9 +25,9 @@ sealed class PaymentUiState {
     data class Passed(val decision: InterventionDecision) : PaymentUiState()
     data class Intervention(
         val decision: InterventionDecision,
-        val belief: BeliefState?
+        val beliefScore: Double
     ) : PaymentUiState()
-    data class Completed(val feedback: OutcomeFeedback) : PaymentUiState()
+    data class Completed(val status: FinalStatus) : PaymentUiState()
 }
 
 class PaymentViewModel : ViewModel() {
@@ -48,35 +48,31 @@ class PaymentViewModel : ViewModel() {
         _uiState.value = PaymentUiState.Processing
 
         viewModelScope.launch {
-            val vyuha = Vyuha.getInstance()
-            val session = vyuha.beginPayment()
+            // 1. Begin payment with safe parameters
+            val session = Vyuha.beginPayment(
+                vpaHash = sha256("known_payee@upi"),
+                amountBucket = AmountBucket.LOW,
+                beneficiaryNovelty = 0.05,
+                channel = "UPI"
+            )
             currentSession = session
 
-            // 1. Prefetch graph risk for a known payee
-            session.prefetchGraphRisk(sha256("known_payee@upi"))
-
-            // 2. Build a benign context snapshot
-            val snapshot = ContextSnapshot(
-                sessionId = session.sessionId,
-                transaction = TransactionContext(
-                    amountBucket = AmountBucket.LOW,
-                    beneficiaryNovelty = 0.05f,  // well-known payee
-                    channel = "UPI"
-                ),
-                communication = CommunicationContext(active = false),
-                device = DeviceContext(captureRisk = false, overlayRisk = false),
-                baseline = BaselineContext(deviationScore = 0.10f)
+            // 2. Update real-time context (benign)
+            session.updateContext(
+                communicationActive = false,
+                captureRisk = false,
+                overlayRisk = false,
+                deviationScore = 0.10
             )
-            session.updateContext(snapshot)
 
             // 3. Evaluate
             val decision = session.evaluate()
 
             if (decision.actionId == ActionId.A0_PASS) {
                 _uiState.value = PaymentUiState.Passed(decision)
+                session.complete(FinalStatus.PAYMENT_COMPLETED)
             } else {
-                // Unexpected — but render it anyway
-                _uiState.value = PaymentUiState.Intervention(decision, session.getLastBelief())
+                _uiState.value = PaymentUiState.Intervention(decision, decision.beliefScore)
             }
         }
     }
@@ -87,67 +83,56 @@ class PaymentViewModel : ViewModel() {
         _uiState.value = PaymentUiState.Processing
 
         viewModelScope.launch {
-            val vyuha = Vyuha.getInstance()
-            val session = vyuha.beginPayment()
+            // 1. Begin payment with high-risk parameters
+            val session = Vyuha.beginPayment(
+                vpaHash = sha256("unknown_scammer@upi"),
+                amountBucket = AmountBucket.CRITICAL,
+                beneficiaryNovelty = 0.94,
+                channel = "UPI"
+            )
             currentSession = session
 
-            // 1. Prefetch graph risk for an unknown (high-risk) VPA
-            session.prefetchGraphRisk(sha256("unknown_scammer@upi"))
-
-            // 2. Build a coercion context snapshot
-            val snapshot = ContextSnapshot(
-                sessionId = session.sessionId,
-                transaction = TransactionContext(
-                    amountBucket = AmountBucket.CRITICAL,  // ₹85,000
-                    beneficiaryNovelty = 0.94f,            // never seen before
-                    channel = "UPI"
-                ),
-                communication = CommunicationContext(active = true),  // on a call
-                device = DeviceContext(
-                    captureRisk = true,    // screen being shared
-                    overlayRisk = false
-                ),
-                baseline = BaselineContext(deviationScore = 0.82f)  // very unusual
+            // 2. Update real-time context (coercion signals)
+            session.updateContext(
+                communicationActive = true, // on a call
+                captureRisk = true,         // screen shared
+                overlayRisk = false,
+                deviationScore = 0.82
             )
-            session.updateContext(snapshot)
 
             // 3. Evaluate — expect A4_ISOLATION_BREAK or higher
             val decision = session.evaluate()
-            _uiState.value = PaymentUiState.Intervention(decision, session.getLastBelief())
+            _uiState.value = PaymentUiState.Intervention(decision, decision.beliefScore)
         }
     }
 
     // ── User responds to intervention ───────────────────────────────
 
-    fun respondToIntervention() {
+    fun respondToIntervention(response: UserResponse) {
         val session = currentSession ?: return
 
         viewModelScope.launch {
-            // Simulate: user ended the call
-            session.recordResponse(UserResponse.CONTINUED)
+            if (response == UserResponse.CANCELLED) {
+                session.complete(FinalStatus.PAYMENT_CANCELLED)
+                _uiState.value = PaymentUiState.Completed(FinalStatus.PAYMENT_CANCELLED)
+                return@launch
+            }
 
-            // Update context: call ended, screen share stopped
-            val updatedSnapshot = ContextSnapshot(
-                sessionId = session.sessionId,
-                transaction = TransactionContext(
-                    amountBucket = AmountBucket.CRITICAL,
-                    beneficiaryNovelty = 0.94f,
-                    channel = "UPI"
-                ),
-                communication = CommunicationContext(active = false),  // call ended
-                device = DeviceContext(captureRisk = false, overlayRisk = false),
-                baseline = BaselineContext(deviationScore = 0.82f)
+            // Simulate: user ended the call and stopped screen share
+            session.updateContext(
+                communicationActive = false,
+                captureRisk = false,
+                overlayRisk = false
             )
-            session.updateContext(updatedSnapshot)
 
-            // Re-evaluate — should step down (e.g., to A5_TRUSTED_VERIFY or lower)
-            val newDecision = session.evaluate()
+            // Re-evaluate
+            val newDecision = session.recordResponse(response)
 
             if (newDecision.actionId == ActionId.A0_PASS) {
-                val feedback = session.complete(FinalStatus.PAYMENT_COMPLETED)
-                _uiState.value = PaymentUiState.Completed(feedback)
+                session.complete(FinalStatus.PAYMENT_COMPLETED)
+                _uiState.value = PaymentUiState.Completed(FinalStatus.PAYMENT_COMPLETED)
             } else {
-                _uiState.value = PaymentUiState.Intervention(newDecision, session.getLastBelief())
+                _uiState.value = PaymentUiState.Intervention(newDecision, newDecision.beliefScore)
             }
         }
     }
