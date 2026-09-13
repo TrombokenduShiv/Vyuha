@@ -7,12 +7,11 @@ package com.vyuha.sdk.contracts
  * Consumed by the host app's ActionRenderer to display the appropriate UI.
  */
 data class InterventionDecision(
-    val sessionId: String,
-    val timestampMs: Long,
-    val actionId: ActionId,
-    val beliefScore: Double,
-    val uncertainty: Double,
-    val reasonCodes: List<String>
+    val action: String,
+    val severity: Int,
+    val reasonCodes: List<String>,
+    val cooldownSeconds: Int,
+    val trustedVerification: Boolean
 )
 
 /**

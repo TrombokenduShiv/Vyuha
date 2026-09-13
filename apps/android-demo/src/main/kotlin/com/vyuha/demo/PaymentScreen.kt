@@ -70,7 +70,7 @@ fun PaymentScreen(viewModel: PaymentViewModel = viewModel()) {
                             style = MaterialTheme.typography.headlineMedium,
                             color = MaterialTheme.colorScheme.primary
                         )
-                        Text("Decision: ${state.decision.actionId.name}")
+                        Text("Decision: ${state.decision.action}")
                         Button(onClick = { viewModel.reset() }) {
                             Text("Start Over")
                         }
@@ -79,7 +79,6 @@ fun PaymentScreen(viewModel: PaymentViewModel = viewModel()) {
                 is PaymentUiState.Intervention -> {
                     InterventionRenderer(
                         decision = state.decision,
-                        beliefScore = state.beliefScore,
                         onResponse = { response ->
                             viewModel.respondToIntervention(response)
                         }

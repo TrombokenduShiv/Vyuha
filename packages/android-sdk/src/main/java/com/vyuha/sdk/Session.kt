@@ -80,7 +80,7 @@ class Session(
         val decision = pipeline.evaluate(snapshot)
         lastDecision = decision
 
-        if (decision.actionId != ActionId.A0_PASS) {
+        if (decision.action != "A0_PASS") {
             state = State.INTERVENTION_PENDING
         }
 

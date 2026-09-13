@@ -33,12 +33,11 @@ class PolicyBandit {
         if (UncertaintyLabel.ABSTAIN in beliefState.uncertaintySet) {
             reasonCodes.add("INSUFFICIENT_CONFIDENCE")
             return InterventionDecision(
-                sessionId = beliefState.sessionId,
-                timestampMs = System.currentTimeMillis(),
-                actionId = ActionId.A6_STEP_UP_REQUIRED,
-                beliefScore = p,
-                uncertainty = 1.0,
-                reasonCodes = reasonCodes
+                action = ActionId.A6_STEP_UP_REQUIRED.name,
+                severity = 6,
+                reasonCodes = reasonCodes,
+                cooldownSeconds = 0,
+                trustedVerification = false
             )
         }
 
@@ -73,12 +72,19 @@ class PolicyBandit {
         }
 
         return InterventionDecision(
-            sessionId = beliefState.sessionId,
-            timestampMs = System.currentTimeMillis(),
-            actionId = actionId,
-            beliefScore = p,
-            uncertainty = uncertainty,
-            reasonCodes = reasonCodes
+            action = actionId.name,
+            severity = when(actionId) {
+                ActionId.A0_PASS -> 0
+                ActionId.A1_MICRO_PROMPT -> 1
+                ActionId.A2_REFLECTION_CHALLENGE -> 2
+                ActionId.A3_COOLING_DELAY -> 3
+                ActionId.A4_ISOLATION_BREAK -> 4
+                ActionId.A5_TRUSTED_VERIFY -> 5
+                ActionId.A6_STEP_UP_REQUIRED -> 6
+            },
+            reasonCodes = reasonCodes,
+            cooldownSeconds = if (actionId == ActionId.A3_COOLING_DELAY) 300 else 0,
+            trustedVerification = actionId == ActionId.A5_TRUSTED_VERIFY
         )
     }
 }

@@ -22,7 +22,6 @@ import com.vyuha.sdk.contracts.UserResponse
 @Composable
 fun InterventionRenderer(
     decision: InterventionDecision,
-    beliefScore: Double,
     onResponse: (UserResponse) -> Unit
 ) {
     Surface(
@@ -44,8 +43,8 @@ fun InterventionRenderer(
             )
             Spacer(modifier = Modifier.height(24.dp))
 
-            when (decision.actionId) {
-                ActionId.A4_ISOLATION_BREAK -> {
+            when (decision.action) {
+                "A4_ISOLATION_BREAK" -> {
                     Text(
                         text = "Active Call Detected",
                         style = MaterialTheme.typography.headlineMedium,
@@ -70,7 +69,7 @@ fun InterventionRenderer(
                         Text("I have ended the call")
                     }
                 }
-                ActionId.A5_TRUSTED_VERIFY -> {
+                "A5_TRUSTED_VERIFY" -> {
                     Text(
                         text = "Verify with Trusted Contact",
                         style = MaterialTheme.typography.headlineMedium,
@@ -100,7 +99,7 @@ fun InterventionRenderer(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "Action required: ${decision.actionId.name}",
+                        text = "Action required: ${decision.action}",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onErrorContainer,
                         textAlign = TextAlign.Center
@@ -132,8 +131,8 @@ fun InterventionRenderer(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("Debug Info (Slice 0/1)", fontWeight = FontWeight.Bold)
-                    Text("Action ID: ${decision.actionId.name}")
-                    Text("P(Coercion): ${String.format("%.2f", beliefScore)}")
+                    Text("Action ID: ${decision.action}")
+                    Text("Severity: ${decision.severity}")
                     Text("Reason Codes: ${decision.reasonCodes.joinToString()}")
                 }
             }

@@ -35,7 +35,7 @@ class PipelineTest {
         val decision = pipeline.evaluate(snapshot)
 
         // For benign context, it should PASS (A0)
-        assertEquals(ActionId.A0_PASS, decision.actionId)
+        assertEquals("A0_PASS", decision.action)
     }
 
     @Test
@@ -66,6 +66,6 @@ class PipelineTest {
         val decision = pipeline.evaluate(snapshot)
 
         // Coercion mock logic should push p_coercion high, and with an active call -> ISOLATION_BREAK
-        assertEquals(ActionId.A4_ISOLATION_BREAK, decision.actionId)
+        assertEquals("A4_ISOLATION_BREAK", decision.action)
     }
 }

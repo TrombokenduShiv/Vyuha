@@ -93,7 +93,7 @@ class Session internal constructor(
     fun complete(finalStatus: FinalStatus): OutcomeFeedback {
         return OutcomeFeedback(
             sessionId = sessionId,
-            actionId = lastDecision?.actionId?.name ?: "UNKNOWN",
+            actionId = lastDecision?.action ?: "UNKNOWN",
             userResponse = UserResponse.NONE,
             finalStatus = finalStatus
         )

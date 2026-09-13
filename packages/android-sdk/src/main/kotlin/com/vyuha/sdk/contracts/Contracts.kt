@@ -113,12 +113,11 @@ data class BeliefState(
 // ── InterventionDecision (contracts/InterventionDecision.schema.json)
 
 data class InterventionDecision(
-    val sessionId: String,
-    val timestampMs: Long = System.currentTimeMillis(),
-    val actionId: ActionId,
-    val beliefScore: Float,
-    val uncertainty: Float,
-    val reasonCodes: List<String>
+    val action: String,
+    val severity: Int,
+    val reasonCodes: List<String>,
+    val cooldownSeconds: Int,
+    val trustedVerification: Boolean
 )
 
 // ── SafetyCircleEvent (contracts/SafetyCircleEvent.schema.json) ─────
