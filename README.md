@@ -1,7 +1,3 @@
-> [!IMPORTANT]
-> **AI AGENT DIRECTIVE**
-> This document contains strict architectural rules for VYUHA 2.0. Any AI agent or coding assistant operating in this repository must abide by these constraints. Do not deviate, simplify, or hallucinate outside these boundaries. Log any new learnings, corrections, or workflow resolutions to the `.ai/` directory.
-
 # Vyuha 2.0: Agency Integrity Layer
 
 **"Authentication protects identity. Vyuha protects intent."**
@@ -10,7 +6,7 @@ Vyuha is an **Edge-AI behavioral defense SDK** designed to detect when a legitim
 
 Instead of relying solely on post-transaction fraud detection, Vyuha operates as a lightweight OODA loop on the edge, interpreting the user's real-time behavioral state (coercion belief) combined with institutional graph intelligence (mule-ring detection) to introduce proportionate friction *before* the transaction is authorized.
 
-## 🏗️ Architecture Overview
+## Architecture Overview
 
 Vyuha uses a strict hybrid architecture, ensuring privacy, offline safety, and institutional data security.
 
@@ -25,7 +21,7 @@ Vyuha uses a strict hybrid architecture, ensuring privacy, offline safety, and i
 
 > For deep architectural details, decisions, and system diagrams, please refer to [docs/ARCHITECTURE_FREEZE_V1.md](docs/ARCHITECTURE_FREEZE_V1.md).
 
-## 🚦 Intervention Space (A0 - A6)
+## Intervention Space (A0 - A6)
 
 Vyuha applies the minimum effective friction needed to break the scammer's synchronous control loop:
 - **A0 (PASS):** No friction (95%+ of normal transactions).
@@ -36,7 +32,7 @@ Vyuha applies the minimum effective friction needed to break the scammer's synch
 - **A5 (TRUSTED_VERIFY):** Invokes the Safety Circle (minimal disclosure).
 - **A6 (STEP_UP_REQUIRED):** Final denial delegated to the host bank.
 
-## 🚀 Installation Instructions
+## Installation Instructions
 
 *Note: As this repository is currently under active hackathon development, the following instructions reflect the intended build process for the prototype.*
 
@@ -69,7 +65,7 @@ cd apps/android-demo
 ```
 Deploy the resulting APK to a physical Android device or emulator running API 26+.
 
-## 🎮 Usage Instructions (Demo)
+## Usage Instructions (Demo)
 
 1. **Launch VyuhaBank:** Open the host bank application on your device.
 2. **Benign Flow:** Initiate a payment to a known contact under normal conditions. The transaction will clear instantly (A0_PASS).
@@ -81,5 +77,5 @@ Deploy the resulting APK to a physical Android device or emulator running API 26
 4. **Offline Mode:** Disconnect the device from the internet. Try the flows again. Vyuha will fail-safe, gracefully substituting the graph signal with `UNKNOWN` and maintaining local behavioral protection.
 
 ---
-**Team Syndicate:** Trombokendu, Aditya, Alaukik, Sneha
+**Team Syndicate:** Trombokendu, Sneha, Aditya, Alaukik
 *(Built for ByteBuilt 1.0)*
