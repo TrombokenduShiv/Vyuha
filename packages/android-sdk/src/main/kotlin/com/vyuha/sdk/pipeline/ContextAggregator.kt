@@ -25,10 +25,10 @@ class ContextAggregator {
         amountBucket: AmountBucket,
         beneficiaryNovelty: Double,
         channel: String = "UPI",
-        communicationActive: Boolean,
-        captureRisk: Boolean = false,
-        overlayRisk: Boolean = false,
-        deviationScore: Double = 0.0,
+        communicationActive: Boolean? = null,
+        captureRisk: Boolean? = null,
+        overlayRisk: Boolean? = null,
+        deviationScore: Double? = null,
         graphRiskToken: GraphRiskToken? = null
     ): ContextSnapshot {
         return ContextSnapshot(
@@ -39,9 +39,9 @@ class ContextAggregator {
                 beneficiaryNovelty = beneficiaryNovelty,
                 channel = channel
             ),
-            communication = CommunicationContext(active = communicationActive),
-            device = DeviceContext(captureRisk = captureRisk, overlayRisk = overlayRisk),
-            baseline = BaselineContext(deviationScore = deviationScore),
+            communication = communicationActive?.let { CommunicationContext(active = it) },
+            device = if (captureRisk != null && overlayRisk != null) DeviceContext(captureRisk = captureRisk, overlayRisk = overlayRisk) else null,
+            baseline = deviationScore?.let { BaselineContext(deviationScore = it) },
             graphRiskToken = graphRiskToken
         )
     }
