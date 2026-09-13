@@ -40,7 +40,7 @@ class TriageGate {
         expertScores.add(ExpertScore("NOVELTY_EXPERT", noveltyScore))
 
         // ── Communication signal (active call = high risk) ──
-        val commScore = if (snapshot.communication.active) 1.0 else 0.0
+        val commScore = if (snapshot.communication?.active == true) 1.0 else 0.0
         riskAccumulator += commScore * 0.3
         expertScores.add(ExpertScore("COMM_EXPERT", commScore))
 
@@ -60,8 +60,8 @@ class TriageGate {
         expertScores.add(ExpertScore("GRAPH_EXPERT", graphScore))
 
         // ── Device risk signals ──
-        val deviceScore = (if (snapshot.device.captureRisk) 0.5 else 0.0) +
-                (if (snapshot.device.overlayRisk) 0.5 else 0.0)
+        val deviceScore = (if (snapshot.device?.captureRisk == true) 0.5 else 0.0) +
+                (if (snapshot.device?.overlayRisk == true) 0.5 else 0.0)
         riskAccumulator += deviceScore * 0.1
         expertScores.add(ExpertScore("DEVICE_EXPERT", deviceScore))
 

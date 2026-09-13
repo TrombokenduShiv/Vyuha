@@ -39,15 +39,25 @@ class BeliefUpdater {
         // ── Missing evidence mask ──
         val missingMask = MissingEvidenceMask(
             graphMissing = snapshot.graphRiskToken == null,
-            baselineMissing = false,  // Always available in mock
-            deviceMissing = false     // Always available in mock
+            baselineMissing = snapshot.baseline == null,
+            deviceMissing = snapshot.device == null
         )
+
+        val finalUncertaintySet = if (missingMask.graphMissing || missingMask.baselineMissing || missingMask.deviceMissing) {
+            val augmented = uncertaintySet.toMutableList()
+            if (!augmented.contains(UncertaintyLabel.ABSTAIN)) {
+                augmented.add(UncertaintyLabel.ABSTAIN)
+            }
+            augmented
+        } else {
+            uncertaintySet
+        }
 
         return BeliefState(
             sessionId = snapshot.sessionId,
             timestampMs = System.currentTimeMillis(),
             pCoercion = pCoercion,
-            uncertaintySet = uncertaintySet,
+            uncertaintySet = finalUncertaintySet,
             missingEvidenceMask = missingMask,
             eventSequenceLength = eventCount
         )

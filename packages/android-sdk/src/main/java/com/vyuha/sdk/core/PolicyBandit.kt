@@ -42,7 +42,7 @@ class PolicyBandit {
         }
 
         // ── Build reason codes from evidence ──
-        if (snapshot.communication.active) reasonCodes.add("ACTIVE_CALL")
+        if (snapshot.communication?.active == true) reasonCodes.add("ACTIVE_CALL")
         if (snapshot.graphRiskToken != null && snapshot.graphRiskToken.riskScore > 0.7) {
             reasonCodes.add("HIGH_GRAPH_RISK")
         }
@@ -51,8 +51,8 @@ class PolicyBandit {
             snapshot.transaction.amountBucket == AmountBucket.CRITICAL) {
             reasonCodes.add("HIGH_AMOUNT")
         }
-        if (snapshot.device.captureRisk) reasonCodes.add("SCREEN_CAPTURE_RISK")
-        if (snapshot.device.overlayRisk) reasonCodes.add("OVERLAY_RISK")
+        if (snapshot.device?.captureRisk == true) reasonCodes.add("SCREEN_CAPTURE_RISK")
+        if (snapshot.device?.overlayRisk == true) reasonCodes.add("OVERLAY_RISK")
 
         // ── Deterministic policy mapping ──
         val actionId = when {
@@ -60,7 +60,7 @@ class PolicyBandit {
             p < 0.5 -> ActionId.A1_MICRO_PROMPT
             p < 0.65 -> ActionId.A2_REFLECTION_CHALLENGE
             p < 0.75 -> ActionId.A3_COOLING_DELAY
-            snapshot.communication.active -> ActionId.A4_ISOLATION_BREAK
+            snapshot.communication?.active == true -> ActionId.A4_ISOLATION_BREAK
             else -> ActionId.A5_TRUSTED_VERIFY
         }
 

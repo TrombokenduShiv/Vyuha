@@ -10,9 +10,9 @@ data class ContextSnapshot(
     val sessionId: String,
     val timestampMs: Long,
     val transaction: TransactionContext,
-    val communication: CommunicationContext,
-    val device: DeviceContext,
-    val baseline: BaselineContext,
+    val communication: CommunicationContext?,
+    val device: DeviceContext?,
+    val baseline: BaselineContext?,
     /** Injected from GraphRiskToken when available; null if offline / missing. */
     val graphRiskToken: GraphRiskToken? = null
 )

@@ -28,10 +28,10 @@ class Session(
     private val pipeline = Pipeline()
 
     /** Current communication state — updated via updateContext(). */
-    private var communicationActive: Boolean = false
-    private var captureRisk: Boolean = false
-    private var overlayRisk: Boolean = false
-    private var deviationScore: Double = 0.0
+    private var communicationActive: Boolean? = null
+    private var captureRisk: Boolean? = null
+    private var overlayRisk: Boolean? = null
+    private var deviationScore: Double? = null
 
     /** The last evaluation result. */
     private var lastDecision: InterventionDecision? = null
@@ -53,10 +53,10 @@ class Session(
         overlayRisk: Boolean? = null,
         deviationScore: Double? = null
     ) {
-        communicationActive?.let { this.communicationActive = it }
-        captureRisk?.let { this.captureRisk = it }
-        overlayRisk?.let { this.overlayRisk = it }
-        deviationScore?.let { this.deviationScore = it }
+        if (communicationActive != null) this.communicationActive = communicationActive
+        if (captureRisk != null) this.captureRisk = captureRisk
+        if (overlayRisk != null) this.overlayRisk = overlayRisk
+        if (deviationScore != null) this.deviationScore = deviationScore
     }
 
     /**
