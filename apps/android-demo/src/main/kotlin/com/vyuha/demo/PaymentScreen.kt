@@ -79,7 +79,6 @@ fun PaymentScreen(viewModel: PaymentViewModel = viewModel()) {
                 is PaymentUiState.Intervention -> {
                     InterventionRenderer(
                         decision = state.decision,
-                        beliefScore = state.beliefScore,
                         onResponse = { response ->
                             viewModel.respondToIntervention(response)
                         }

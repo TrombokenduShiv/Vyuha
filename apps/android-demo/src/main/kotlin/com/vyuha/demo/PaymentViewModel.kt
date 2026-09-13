@@ -27,8 +27,7 @@ sealed class PaymentUiState {
     object Processing : PaymentUiState()
     data class Passed(val decision: InterventionDecision) : PaymentUiState()
     data class Intervention(
-        val decision: InterventionDecision,
-        val beliefScore: Double
+        val decision: InterventionDecision
     ) : PaymentUiState()
     data class Completed(val status: FinalStatus) : PaymentUiState()
 }
@@ -71,11 +70,11 @@ class PaymentViewModel : ViewModel() {
             // 3. Evaluate
             val decision = session.evaluate()
 
-            if (decision.actionId == ActionId.A0_PASS) {
+            if (decision.action == "A0_PASS") {
                 _uiState.value = PaymentUiState.Passed(decision)
                 session.complete(FinalStatus.PAYMENT_COMPLETED)
             } else {
-                _uiState.value = PaymentUiState.Intervention(decision, decision.beliefScore)
+                _uiState.value = PaymentUiState.Intervention(decision)
             }
         }
     }
@@ -105,7 +104,7 @@ class PaymentViewModel : ViewModel() {
 
             // 3. Evaluate — expect A4_ISOLATION_BREAK or higher
             val decision = session.evaluate()
-            _uiState.value = PaymentUiState.Intervention(decision, decision.beliefScore)
+            _uiState.value = PaymentUiState.Intervention(decision)
         }
     }
 
@@ -131,11 +130,11 @@ class PaymentViewModel : ViewModel() {
             // Re-evaluate via recordResponse
             val newDecision = session.recordResponse(response)
 
-            if (newDecision.actionId == ActionId.A0_PASS) {
+            if (newDecision.action == "A0_PASS") {
                 session.complete(FinalStatus.PAYMENT_COMPLETED)
                 _uiState.value = PaymentUiState.Completed(FinalStatus.PAYMENT_COMPLETED)
             } else {
-                _uiState.value = PaymentUiState.Intervention(newDecision, newDecision.beliefScore)
+                _uiState.value = PaymentUiState.Intervention(newDecision)
             }
         }
     }
