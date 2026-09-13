@@ -1,0 +1,13 @@
+{
+    "model": "MVP Synthetic Heterogeneous Graph",
+    "status": "Simulated Data Generated. No ST-GNN Model Trained Yet.",
+    "metrics": {
+        "AUROC": "UNMEASURED",
+        "AUPRC": "UNMEASURED",
+        "precision": "UNMEASURED",
+        "recall": "UNMEASURED",
+        "F1": "UNMEASURED",
+        "calibration": "UNMEASURED",
+        "inference_latency_ms": "UNMEASURED"
+    }
+}
