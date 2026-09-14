@@ -152,7 +152,8 @@ class PaymentFlowViewModel : ViewModel() {
             TransactionInput(
                 payeeVpa = payeeVpa,
                 amountInr = amountInr,
-                payeeName = payeeName
+                payeeName = payeeName,
+                beneficiaryNovelty = if (_selectedContact.value?.isKnown == true) .1 else .95
             )
         )
         vyuhaSession = session
@@ -190,14 +191,10 @@ class PaymentFlowViewModel : ViewModel() {
         val session = vyuhaSession ?: return
         _isProcessing.value = true
 
-        // Simulate: user has ended the call and stopped screen sharing
-        _isOnCall.value = false
-        _isScreenShared.value = false
-
         session.observe(
             DeviceSignals(
-                isOnCall = false,
-                isScreenShared = false
+                isOnCall = _isOnCall.value,
+                isScreenShared = _isScreenShared.value
             )
         )
 

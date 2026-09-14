@@ -80,25 +80,29 @@ def main(quick=False):
         results.append(r)
 
     # Stage 3: Train HGT
-    hgt_args = ["--epochs", "5" if quick else "30", "--quick-test"] if quick else ["--epochs", "30"]
+    hgt_args = ["--epochs", "5", "--quick-test"] if quick else ["--epochs", "120", "--lr", "0.003"]
     r = run_stage("Train HGT Graph Model", "ml.graph.training.train_hgt", hgt_args)
     results.append(r)
 
     # Stage 4: Train MoE
+    if r["status"] == "FAIL": return False
     moe_args = ["--epochs", "20" if quick else "50"]
     r = run_stage("Train Edge MoE", "ml.edge.training.train_moe", moe_args)
     results.append(r)
 
     # Stage 5: Train Policy
+    if r["status"] == "FAIL": return False
     policy_args = ["--n-scenarios", "1000" if quick else "5000"]
     r = run_stage("Train Frozen Policy", "ml.policy.training.train_policy", policy_args)
     results.append(r)
 
     # Stage 6: Export
+    if r["status"] == "FAIL": return False
     r = run_stage("Export Models", "ml.export.export_onnx")
     results.append(r)
 
     # Stage 7: Evaluate HGT
+    if r["status"] == "FAIL": return False
     r = run_stage("Evaluate HGT", "ml.graph.evaluation.evaluate")
     results.append(r)
 

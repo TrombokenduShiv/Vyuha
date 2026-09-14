@@ -29,7 +29,8 @@ from sklearn.metrics import (
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")))
 
 from ml.graph.model.hgt import HGTModel
-from ml.graph.data.loader import load_hetero_data
+from ml.graph.data.loader import load_hetero_data, FEATURE_VERSION
+from ml.artifacts import save_checkpoint
 
 # ── Constants ──────────────────────────────────────────────────────
 CHECKPOINT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../checkpoints"))
@@ -98,10 +99,15 @@ def evaluate_model(model, data, device):
     return metrics
 
 
-def train(epochs=50, lr=1e-3, hidden_dim=64, num_heads=4, num_layers=2,
+def train(epochs=50, lr=1e-3, hidden_dim=32, num_heads=4, num_layers=2,
           patience=10, device_str="cpu", quick_test=False):
     """Full training pipeline."""
     device = torch.device(device_str)
+    torch.manual_seed(42)
+    np.random.seed(42)
+    torch.set_num_threads(2)
+    if epochs < 1:
+        raise ValueError("epochs must be positive")
 
     print("=" * 60)
     print("Vyuha 2.0 — HGT Training Pipeline")
@@ -142,7 +148,7 @@ def train(epochs=50, lr=1e-3, hidden_dim=64, num_heads=4, num_layers=2,
     train_labels = train_data["labels"].to(device)
     train_mask = train_data["label_mask"].to(device)
 
-    best_val_pr_auc = 0.0
+    best_val_pr_auc = -1.0
     best_epoch = 0
     patience_counter = 0
 
@@ -188,7 +194,12 @@ def train(epochs=50, lr=1e-3, hidden_dim=64, num_heads=4, num_layers=2,
 
                 # Save checkpoint
                 ckpt_path = os.path.join(CHECKPOINT_DIR, "hgt_best.pt")
-                torch.save({
+                save_checkpoint({
+                    "schema_version": 2,
+                    "feature_version": FEATURE_VERSION,
+                    "data_kind": "synthetic",
+                    "seed": 42,
+                    "split_protocol": "hash-disjoint-labels-causal-snapshots-v2",
                     "epoch": epoch,
                     "model_state_dict": model.state_dict(),
                     "optimizer_state_dict": optimizer.state_dict(),
@@ -213,6 +224,28 @@ def train(epochs=50, lr=1e-3, hidden_dim=64, num_heads=4, num_layers=2,
     print(f"Checkpoint saved to: {os.path.join(CHECKPOINT_DIR, 'hgt_best.pt')}")
     print(f"{'=' * 60}")
 
+    # Temperature fitted only on a separate calibration label partition.
+    path = os.path.join(CHECKPOINT_DIR, "hgt_best.pt")
+    checkpoint = torch.load(path, map_location=device, weights_only=True)
+    model.load_state_dict(checkpoint["model_state_dict"])
+    model.eval()
+    cal = load_hetero_data("cal")
+    with torch.no_grad():
+        output = model({k: v.to(device) for k, v in cal["node_features"].items()},
+                       {k: v.to(device) for k, v in cal["edge_index"].items()},
+                       {k: v.to(device) for k, v in cal["edge_attr"].items()})
+        mask = cal["label_mask"].to(device)
+        logits = output["risk_logits"][mask].detach()
+        targets = cal["labels"].to(device)[mask]
+    if len(targets) == 0 or targets.unique().numel() < 2:
+        raise ValueError("Calibration requires both classes")
+    temperatures = torch.logspace(-1, 1, 100, device=device)
+    losses = torch.stack([nn.functional.binary_cross_entropy_with_logits(logits / t, targets) for t in temperatures])
+    model.temperature.copy_(temperatures[losses.argmin()])
+    checkpoint["model_state_dict"] = model.state_dict()
+    checkpoint["calibration"] = {"method": "temperature", "temperature": model.temperature.item(),
+                                  "n": len(targets), "partition": "cal"}
+    save_checkpoint(checkpoint, path)
     return model, best_val_pr_auc
 
 
@@ -220,7 +253,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train HGT model")
     parser.add_argument("--epochs", type=int, default=50)
     parser.add_argument("--lr", type=float, default=1e-3)
-    parser.add_argument("--hidden-dim", type=int, default=64)
+    parser.add_argument("--hidden-dim", type=int, default=32)
     parser.add_argument("--num-heads", type=int, default=4)
     parser.add_argument("--num-layers", type=int, default=2)
     parser.add_argument("--patience", type=int, default=10)

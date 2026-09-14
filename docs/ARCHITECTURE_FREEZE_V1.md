@@ -4,6 +4,8 @@
 
 # VYUHA 2.0: ARCHITECTURE FREEZE V1
 
+Historical baseline. The user-authorized [ADR-005](decisions/ADR-005-dual-integrity-and-evidence.md) supersedes conflicting agency/receiver fusion, uncertainty, runtime, signing and benchmark descriptions. See the [current project guide](VYUHA_PROJECT_GUIDE.md).
+
 ## 1. APPROVED DECISIONS
 
 ### D1: Demo Platform

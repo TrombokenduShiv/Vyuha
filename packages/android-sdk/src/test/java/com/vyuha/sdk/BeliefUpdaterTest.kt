@@ -75,13 +75,15 @@ class BeliefUpdaterTest {
 
         assertTrue("Repeated risk should increase P(Coercion): ${belief1.pCoercion} -> ${belief2.pCoercion}",
             belief2.pCoercion >= belief1.pCoercion)
-        assertEquals("Event sequence should increment", 2, belief2.eventSequenceLength)
+        assertEquals("Repeated observations are not independent evidence", 1, belief2.eventSequenceLength)
+        assertEquals(belief1.pCoercion, belief2.pCoercion, 0.0)
     }
 
     @Test
     fun testSignalsClear_CoercionDrops() {
         // First: risky signals
-        val riskySnapshot = buildSnapshot(communicationActive = true, amountBucket = AmountBucket.CRITICAL)
+        val riskySnapshot = buildSnapshot(communicationActive = true, amountBucket = AmountBucket.CRITICAL,
+            beneficiaryNovelty = .95, captureRisk = true, deviationScore = .85)
         val riskyToken = buildRiskyToken()
         val riskyEdge = triageGate.evaluate(riskySnapshot, riskyToken)
         val beliefRisky = beliefUpdater.update("test-4", riskyEdge, riskyToken, riskySnapshot)

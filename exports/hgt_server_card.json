@@ -1,26 +1,24 @@
 {
-    "model": "HGT (Heterogeneous Graph Transformer)",
-    "version": "v0.1",
-    "format": "PyTorch state_dict",
-    "config": {
-        "hidden_dim": 64,
-        "num_heads": 4,
-        "num_layers": 2,
-        "feature_dims": {
-            "account": 8,
-            "vpa": 4,
-            "device": 4,
-            "phone": 4
-        }
-    },
-    "parameters": 183178,
-    "target_device": "Server (graph-risk-api)",
-    "node_types": [
-        "account",
-        "vpa",
-        "device",
-        "phone"
-    ],
-    "edge_types": 5,
-    "output": "risk_score (float), confidence (float), embedding (64-dim)"
+  "version": "2.1",
+  "format": "pytorch_state_dict_with_config",
+  "data_kind": "synthetic",
+  "checkpoint_sha256": "62cd25f06cff0789e993637d5585b6588188e297570ebc90b77ba8798295b845",
+  "config": {
+    "hidden_dim": 32,
+    "num_heads": 4,
+    "num_layers": 2,
+    "feature_dims": {
+      "account": 8,
+      "vpa": 4,
+      "device": 4,
+      "phone": 4
+    }
+  },
+  "feature_version": "fixed-log-v2",
+  "calibration": {
+    "method": "temperature",
+    "temperature": 0.2782559394836426,
+    "n": 2892,
+    "partition": "cal"
+  }
 }

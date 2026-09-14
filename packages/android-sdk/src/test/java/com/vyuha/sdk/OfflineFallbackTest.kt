@@ -75,10 +75,8 @@ class OfflineFallbackTest {
         )
 
         // Missing graph should result in higher pCoercion (more uncertain)
-        assertTrue(
-            "Missing graph should increase pCoercion: with=${beliefWithGraph.pCoercion}, without=${beliefWithout.pCoercion}",
-            beliefWithout.pCoercion > beliefWithGraph.pCoercion
-        )
+        assertEquals("Missing receiver evidence must not fabricate coercion",
+            beliefWithGraph.pCoercion, beliefWithout.pCoercion, 0.0)
     }
 
     @Test

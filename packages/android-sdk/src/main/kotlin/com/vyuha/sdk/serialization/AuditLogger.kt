@@ -22,12 +22,14 @@ import java.io.PrintWriter
 class AuditLogger(
     /** Directory where audit logs are stored. */
     private val logDir: File,
+    /** Local diagnostic logs are opt-in; production must use a governed encrypted sink. */
+    private val enabled: Boolean = false,
     /** Coroutine scope for async writes. */
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 ) {
 
     init {
-        if (!logDir.exists()) {
+        if (enabled && !logDir.exists()) {
             logDir.mkdirs()
         }
     }
@@ -102,6 +104,8 @@ class AuditLogger(
      * Read all audit entries for a session (for debugging).
      */
     fun readSession(sessionId: String): List<String> {
+        java.util.UUID.fromString(sessionId)
+        if (!enabled) return emptyList()
         val file = File(logDir, "session_${sessionId}.jsonl")
         return if (file.exists()) file.readLines() else emptyList()
     }
@@ -110,6 +114,8 @@ class AuditLogger(
      * Async write to the session-specific log file.
      */
     private fun writeAsync(sessionId: String, jsonLine: String) {
+        if (!enabled) return
+        java.util.UUID.fromString(sessionId)
         scope.launch {
             try {
                 val file = File(logDir, "session_${sessionId}.jsonl")

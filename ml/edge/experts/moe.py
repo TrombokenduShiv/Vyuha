@@ -20,6 +20,8 @@ class EdgeRiskMoE(nn.Module):
         self.input_dim = input_dim
         self.num_experts = num_experts
         self.top_k = top_k
+        if not 1 <= top_k <= num_experts:
+            raise ValueError("Invalid expert routing configuration")
         
         # Gate network
         self.gate = nn.Sequential(
@@ -41,7 +43,10 @@ class EdgeRiskMoE(nn.Module):
         # Deterministic Fast-Safe Path
         # Assume inputs are normalized [0, 1]. If sum is very low, it's safely benign.
         # We process this batched, but for edge deployment (batch=1), it bypasses everything.
-        fast_safe_mask = x.sum(dim=1) < 0.05
+        # Zero/missing features are not proof of safety. Always infer.
+        fast_safe_mask = torch.zeros(batch_size, dtype=torch.bool, device=x.device)
+        # Slot 4 is reserved: receiver evidence MUST NOT alter agency risk.
+        x = x * x.new_tensor([1, 1, 1, 1, 0, 1])
         
         # Gate routing
         gate_logits = self.gate(x)
@@ -76,7 +81,7 @@ class EdgeRiskMoE(nn.Module):
         
         # Confidence proxy (entropy of gate)
         entropy = -(routing_weights * torch.log(routing_weights + 1e-9)).sum(dim=-1)
-        confidence = 1.0 - (entropy / torch.log(torch.tensor(float(self.num_experts))))
+        confidence = 1.0 - (entropy / x.new_tensor(float(self.num_experts)).log())
         
         t1 = time.perf_counter()
         inference_timing_ms = (t1 - t0) * 1000.0

@@ -1,5 +1,4 @@
 {
-  "": "http://json-schema.org/draft-07/schema#",
   "title": "InterventionDecision",
   "type": "object",
   "properties": {
@@ -37,6 +36,17 @@
       "items": {
         "type": "string"
       }
+    },
+    "counterparty_risk": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 1
+    },
+    "template_id": {
+      "type": "string"
     }
   },
   "required": [
@@ -45,6 +55,9 @@
     "action_id",
     "belief_score",
     "uncertainty",
-    "reason_codes"
-  ]
+    "reason_codes",
+    "counterparty_risk",
+    "template_id"
+  ],
+  "$schema": "http://json-schema.org/draft-07/schema#"
 }

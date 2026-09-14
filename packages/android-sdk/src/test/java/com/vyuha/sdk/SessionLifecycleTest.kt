@@ -159,7 +159,7 @@ class SessionLifecycleTest {
                 .joinToString("") { "%02x".format(it) }
         }
 
-        return Vyuha.beginPayment(
+        return Vyuha.beginPaymentInternal(
             vpaHash = vpaHash,
             amountBucket = amountBucket,
             beneficiaryNovelty = beneficiaryNovelty

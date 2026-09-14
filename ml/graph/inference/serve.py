@@ -1,244 +1,115 @@
-"""
-Vyuha 2.0 — Graph Inference Service
-======================================
-Server-side HGT inference module used by the Graph Risk API.
-Loads the trained HGT model checkpoint and runs inference on
-the full graph to produce GraphRiskTokens.
+"""Immutable HGT score snapshots. Querying is O(1); refresh runs off the hot path.
 
-This bridges the gap between:
-    - ml/graph/training (trains the model)
-    - services/graph-risk-api (serves tokens to the SDK)
-
-Architecture ref: ARCHITECTURE_FREEZE_V1 §2 (Component Diagram),
-                  ADR-003 §Graph Output.
+Unknown, sparse, stale and unavailable evidence abstain. No fabricated scores.
+This module contains no token signing secrets and never serves raw graph data.
 """
-import os
-import sys
-import json
-import time
+from pathlib import Path
+from dataclasses import dataclass
+from types import MappingProxyType
 import hashlib
-import hmac
+import threading
+import time
 import numpy as np
 import torch
-
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")))
-
+from ml.graph.data.loader import load_hetero_data, FEATURE_VERSION
 from ml.graph.model.hgt import HGTModel
-from ml.graph.data.loader import load_hetero_data
 
-CHECKPOINT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../checkpoints"))
-SIGNING_SECRET = b"vyuha-demo-secret-do-not-use-in-prod"
+ROOT = Path(__file__).resolve().parents[3]
 
-# Reason code thresholds
-REASON_CODE_THRESHOLDS = {
-    "HIGH_FAN_IN": {"feature_idx": 0, "threshold": 0.7},       # in-degree
-    "RAPID_FAN_OUT": {"feature_idx": 1, "threshold": 0.7},     # out-degree
-    "BURST_ACTIVITY": {"feature_idx": 4, "threshold": 0.6},    # tx count
-    "TEMPORAL_CHAIN_PATTERN": {"feature_idx": 7, "threshold": 0.5},  # mean IAT
-}
+
+@dataclass(frozen=True)
+class Snapshot:
+    scores: object
+    by_vpa: object
+    account_stats: object
+    version: str
+    refreshed_at: float
+    graph_as_of: float
+    inference_ms: float
+    synthetic: bool
 
 
 class GraphInferenceEngine:
-    """
-    Loads the trained HGT model and precomputes risk scores
-    for all accounts in the graph.
+    def __init__(self, max_snapshot_age=300, allow_synthetic=False):
+        self._snapshot = None
+        self._refresh_lock = threading.Lock()
+        self.max_snapshot_age = max_snapshot_age
+        self.allow_synthetic = allow_synthetic
 
-    Usage:
-        engine = GraphInferenceEngine()
-        engine.load()
-        token = engine.query_risk("acc_12345")
-    """
+    @property
+    def loaded(self):
+        return self._snapshot is not None
 
-    def __init__(self):
-        self.model = None
-        self.risk_scores = None
-        self.confidence_scores = None
-        self.node_features = None
-        self.account_map = None
-        self.reverse_map = None  # idx -> account_id
-        self.loaded = False
+    def load(self, checkpoint_path=None, data_split="full", data_dir=None):
+        with self._refresh_lock:
+            path = Path(checkpoint_path or ROOT / "checkpoints/hgt_best.pt")
+            ckpt = torch.load(path, map_location="cpu", weights_only=True)
+            if ckpt.get("schema_version") != 2 or ckpt.get("feature_version") != FEATURE_VERSION:
+                raise ValueError("Incompatible HGT checkpoint; retrain using v2 pipeline")
+            synthetic = ckpt.get("data_kind") == "synthetic"
+            if synthetic and not self.allow_synthetic:
+                raise ValueError("Synthetic model requires explicit demo mode")
+            if not ckpt.get("calibration"):
+                raise ValueError("Uncalibrated checkpoint")
+            model = HGTModel(**ckpt["config"]).eval()
+            model.load_state_dict(ckpt["model_state_dict"])
+            data = load_hetero_data(data_split, data_dir=data_dir)
+            as_of = data["metadata"]["as_of"]
+            if not synthetic and (time.time() - as_of > self.max_snapshot_age or as_of > time.time() + 30):
+                raise ValueError("Graph snapshot is stale or future-dated")
+            started = time.perf_counter()
+            with torch.inference_mode():
+                out = model(data["node_features"], data["edge_index"], data["edge_attr"])
+            elapsed = (time.perf_counter() - started) * 1000
+            values = out["risk_scores"].numpy()
+            if not np.isfinite(values).all():
+                raise ValueError("Non-finite model predictions")
+            scores = {account: float(values[i]) for account, i in data["node_maps"]["account"].items()}
+            # Resolve from actual OWNS edges, never identifier naming conventions.
+            by_vpa = {hashlib.sha256(vpa.encode()).hexdigest(): account
+                      for vpa, account in data["vpa_to_account"].items()}
+            stats = {account: {k: float(v[i]) for k, v in data["account_stats"].items()}
+                     for account, i in data["node_maps"]["account"].items()}
+            version = "hgt-v2-" + hashlib.sha256(path.read_bytes()).hexdigest()[:16]
+            snapshot = Snapshot(MappingProxyType(scores), MappingProxyType(by_vpa),
+                                MappingProxyType(stats), version, time.time(), as_of, elapsed, synthetic)
+            # Readers see the complete old or complete new snapshot, never half a refresh.
+            self._snapshot = snapshot
 
-    def load(self, checkpoint_path: str = None, data_split: str = "full"):
-        """Load model and precompute all account risk scores."""
-        if checkpoint_path is None:
-            checkpoint_path = os.path.join(CHECKPOINT_DIR, "hgt_best.pt")
+    def query_risk(self, account_id=None, vpa_hash=None):
+        snapshot = self._snapshot
+        unknown = {"risk_score": None, "confidence": 0.0, "risk_class": "UNKNOWN",
+                   "reason_codes": ["GRAPH_UNAVAILABLE"], "model_version": "unavailable",
+                   "graph_as_of": 0, "data_kind": "unknown"}
+        if snapshot is None:
+            return unknown
+        base = {**unknown, "model_version": snapshot.version, "graph_as_of": int(snapshot.graph_as_of),
+                "data_kind": "synthetic" if snapshot.synthetic else "institutional"}
+        if time.time() - snapshot.refreshed_at >= self.max_snapshot_age or (
+                not snapshot.synthetic and time.time() - snapshot.graph_as_of >= self.max_snapshot_age):
+            return {**base, "reason_codes": ["STALE_GRAPH"]}
+        account = snapshot.by_vpa.get(vpa_hash) if vpa_hash else account_id
+        if account not in snapshot.scores:
+            return {**base, "reason_codes": ["UNKNOWN_RECEIVER"]}
+        stats = snapshot.account_stats[account]
+        if stats["activity_count"] < 3:
+            return {**base, "reason_codes": ["INSUFFICIENT_HISTORY"]}
+        risk = snapshot.scores[account]
+        reasons = []
+        # Observed support signals, NOT causal model explanations or allegations.
+        if stats["in_count"] >= 20:
+            reasons.append("HIGH_FAN_IN")
+        if stats["out_count"] >= 5 and stats["mean_iat_seconds"] < 3600:
+            reasons.append("RAPID_FAN_OUT")
+        if not reasons:
+            reasons.append("MODEL_NETWORK_PATTERN")
+        return {**base, "risk_score": round(risk, 6), "confidence": round(abs(2 * risk - 1), 6),
+                "risk_class": "HIGH" if risk >= .7 else "LOW" if risk < .3 else "ELEVATED",
+                "reason_codes": reasons}
 
-        if not os.path.exists(checkpoint_path):
-            print(f"[GraphInference] No checkpoint at {checkpoint_path}")
-            print("[GraphInference] Running in fallback (deterministic) mode")
-            self.loaded = False
-            return
-
-        print(f"[GraphInference] Loading HGT model from {checkpoint_path}")
-        ckpt = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
-        config = ckpt["config"]
-
-        self.model = HGTModel(
-            feature_dims=config["feature_dims"],
-            hidden_dim=config["hidden_dim"],
-            num_heads=config["num_heads"],
-            num_layers=config["num_layers"],
-        )
-        self.model.load_state_dict(ckpt["model_state_dict"])
-        self.model.eval()
-
-        # Load graph data
-        print(f"[GraphInference] Loading graph data (split={data_split})...")
-        data = load_hetero_data(data_split)
-
-        self.account_map = data["node_maps"]["account"]
-        self.reverse_map = {v: k for k, v in self.account_map.items()}
-        self.node_features = data["node_features"]
-
-        # Run full-graph inference
-        print("[GraphInference] Running full-graph inference...")
-        t0 = time.perf_counter()
-        with torch.no_grad():
-            out = self.model(
-                data["node_features"],
-                data["edge_index"],
-                data["edge_attr"]
-            )
-        t1 = time.perf_counter()
-
-        self.risk_scores = out["risk_scores"].numpy()
-        self.confidence_scores = out["confidence"].numpy()
-
-        print(f"[GraphInference] Inference complete in {(t1-t0)*1000:.1f}ms")
-        print(f"[GraphInference] {len(self.risk_scores)} accounts scored")
-        print(f"[GraphInference] Risk range: [{self.risk_scores.min():.3f}, {self.risk_scores.max():.3f}]")
-
-        self.loaded = True
-
-    def query_risk(self, account_id: str = None, vpa_hash: str = None) -> dict:
-        """
-        Query risk for an account or VPA hash.
-
-        Returns a GraphRiskToken-compatible dict with:
-            - risk_score, confidence, reason_codes, model_version,
-              issued_at, expires_at, signature
-        """
-        now = int(time.time())
-
-        if not self.loaded:
-            # Fallback: medium risk for unknown
-            return self._build_token(
-                vpa_hash=vpa_hash or "unknown",
-                risk_score=0.45,
-                confidence=0.50,
-                reason_codes=["FALLBACK_MODE"],
-                model_version="hgt-v0.1-fallback"
-            )
-
-        # Try to find the account
-        idx = None
-        if account_id and account_id in self.account_map:
-            idx = self.account_map[account_id]
-        elif vpa_hash:
-            # Try matching by VPA naming convention
-            for acc_id, acc_idx in self.account_map.items():
-                vpa_id = f"vpa_{acc_id.split('_')[1]}" if '_' in acc_id else acc_id
-                if hashlib.sha256(vpa_id.encode()).hexdigest() == vpa_hash:
-                    idx = acc_idx
-                    break
-
-        if idx is None:
-            # Unknown account — return medium risk
-            return self._build_token(
-                vpa_hash=vpa_hash or "unknown",
-                risk_score=0.45,
-                confidence=0.50,
-                reason_codes=["UNKNOWN_ACCOUNT"],
-                model_version="hgt-v0.1"
-            )
-
-        risk = float(self.risk_scores[idx])
-        conf = float(self.confidence_scores[idx])
-
-        # Generate reason codes from node features
-        reason_codes = self._compute_reason_codes(idx)
-
-        return self._build_token(
-            vpa_hash=vpa_hash or account_id or "unknown",
-            risk_score=round(risk, 4),
-            confidence=round(conf, 4),
-            reason_codes=reason_codes,
-            model_version="hgt-v0.1"
-        )
-
-    def _compute_reason_codes(self, account_idx: int) -> list:
-        """Derive explainability reason codes from node features."""
-        codes = []
-        features = self.node_features["account"][account_idx].numpy()
-
-        for code, spec in REASON_CODE_THRESHOLDS.items():
-            feat_idx = spec["feature_idx"]
-            if feat_idx < len(features) and features[feat_idx] > spec["threshold"]:
-                codes.append(code)
-
-        # Risk-based codes
-        risk = float(self.risk_scores[account_idx])
-        if risk > 0.8:
-            codes.append("MULE_NEIGHBORHOOD")
-        if risk > 0.6 and "BURST_ACTIVITY" in codes:
-            codes.append("SHARED_DEVICE_CLUSTER")
-
-        return codes
-
-    def _build_token(self, vpa_hash: str, risk_score: float, confidence: float,
-                     reason_codes: list, model_version: str) -> dict:
-        """Build a signed GraphRiskToken."""
-        now = int(time.time())
-        payload = {
-            "vpa_hash": vpa_hash,
-            "risk_score": risk_score,
-            "confidence": confidence,
-            "reason_codes": reason_codes,
-            "issued_at": now,
-            "expires_at": now + 3600,
-            "model_version": model_version,
-        }
-
-        # HMAC signature
-        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
-        signature = hmac.new(SIGNING_SECRET, canonical.encode(), hashlib.sha256).hexdigest()
-        payload["signature"] = signature
-
-        return payload
-
-    def get_stats(self) -> dict:
-        """Return engine statistics."""
-        if not self.loaded:
-            return {"loaded": False, "mode": "fallback"}
-
-        return {
-            "loaded": True,
-            "mode": "hgt-inference",
-            "num_accounts": len(self.risk_scores),
-            "risk_mean": round(float(self.risk_scores.mean()), 4),
-            "risk_std": round(float(self.risk_scores.std()), 4),
-            "high_risk_count": int((self.risk_scores > 0.7).sum()),
-            "low_risk_count": int((self.risk_scores < 0.3).sum()),
-        }
-
-
-if __name__ == "__main__":
-    print("=" * 60)
-    print("Vyuha 2.0 -- Graph Inference Engine Test")
-    print("=" * 60)
-
-    engine = GraphInferenceEngine()
-    engine.load()
-
-    print(f"\nEngine stats: {json.dumps(engine.get_stats(), indent=2)}")
-
-    # Query some accounts
-    for acc_id in ["acc_0", "acc_100", "acc_500", "acc_9999"]:
-        token = engine.query_risk(account_id=acc_id)
-        print(f"\n{acc_id}: risk={token['risk_score']:.4f}, "
-              f"confidence={token['confidence']:.4f}, "
-              f"reasons={token['reason_codes']}")
-
-    # Query unknown
-    unknown = engine.query_risk(vpa_hash="deadbeef1234")
-    print(f"\nUnknown VPA: risk={unknown['risk_score']}, reasons={unknown['reason_codes']}")
+    def get_stats(self):
+        s = self._snapshot
+        return {"loaded": s is not None, "mode": "hgt-snapshot" if s else "unavailable",
+                **({"num_accounts": len(s.scores), "model_version": s.version,
+                    "snapshot_age_s": time.time() - s.refreshed_at, "inference_ms": s.inference_ms,
+                    "data_kind": "synthetic" if s.synthetic else "institutional"} if s else {})}

@@ -1,0 +1,22 @@
+{
+  "version": "2.1",
+  "purpose": "Assess agency and receiver risk during a host-authorized payment session",
+  "training_data": "synthetic only in this repository",
+  "prohibited_content": ["call_audio", "voice_transcript", "social_messages", "sms_content", "notification_content", "screen_images", "clipboard_history", "facial_emotion", "voice_stress"],
+  "signals": [
+    {"name": "amount_bucket", "source": "host payment context", "purpose": "contextualize payment size", "processed_at": "device", "raw_content": false, "exported_by_sdk": false, "retention": "SDK session; host transaction records governed separately"},
+    {"name": "beneficiary_novelty", "source": "institution history supplied by host", "purpose": "identify unfamiliar recipient", "processed_at": "device", "raw_content": false, "exported_by_sdk": false, "retention": "session"},
+    {"name": "communication_active", "source": "host-supported communication state; simulated in demo", "purpose": "possible live influence context", "processed_at": "device", "raw_content": false, "exported_by_sdk": false, "retention": "session", "optional": true},
+    {"name": "capture_risk", "source": "host-supported integrity signal; simulated in demo", "purpose": "possible remote influence context", "processed_at": "device", "raw_content": false, "exported_by_sdk": false, "retention": "session", "optional": true},
+    {"name": "overlay_risk", "source": "host-supported integrity signal; simulated in demo", "purpose": "device-context inventory; not a standalone trained predictor", "processed_at": "device", "raw_content": false, "exported_by_sdk": false, "retention": "session", "optional": true},
+    {"name": "baseline_deviation", "source": "normalized host/local aggregate", "purpose": "contextualize unusual behavior", "processed_at": "device", "raw_content": false, "exported_by_sdk": false, "retention": "session; encrypted rolling baseline is a future host integration", "optional": true},
+    {"name": "online_purchase", "source": "explicit user/host input", "purpose": "choose relevant verification wording", "processed_at": "device", "raw_content": false, "exported_by_sdk": false, "retention": "session", "optional": true},
+    {"name": "recipient_reference", "source": "host-resolved recipient", "purpose": "receiver lookup", "processed_at": "institution", "raw_content": false, "exported_by_sdk": true, "retention": "lookup/session; institution must define record schedule", "note": "SHA-256 demo identifier remains pseudonymous; production tokenization required"},
+    {"name": "session_id", "source": "random SDK UUID", "purpose": "bind evidence to payment session", "processed_at": "device and institution", "raw_content": false, "exported_by_sdk": true, "retention": "session/token expiry; institution audit policy if enabled"},
+    {"name": "institutional_graph", "source": "synthetic CSVs in prototype; authorized institution feeds in production", "purpose": "receiver network inference", "processed_at": "institution", "exported_to_device": false, "retention": "institution-defined; no real customer graph in this repository"},
+    {"name": "graph_risk_token", "source": "institutional HGT service", "purpose": "minimal signed receiver evidence", "processed_at": "device", "raw_content": false, "retention": "120-second validity; no stale-token grace"},
+    {"name": "audit_decision", "source": "SDK decision", "purpose": "optional diagnostics and governed security audit", "processed_at": "device", "enabled_by_default": false, "retention": "must be set by deploying institution; production audit sink not implemented"}
+  ],
+  "deployment_responsibilities": ["processing basis and notice", "optional signal choices and consent where applicable", "rights and grievance workflows", "retention and deletion", "processor agreements", "incident response", "security safeguards", "children-related requirements", "institutional authorization and sector rules"],
+  "compliance_claim": "Designed for DPDP-aligned deployment; not certified compliance"
+}

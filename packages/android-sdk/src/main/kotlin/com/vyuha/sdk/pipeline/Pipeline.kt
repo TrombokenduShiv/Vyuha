@@ -61,7 +61,7 @@ class Pipeline(
 
         // Step 4: Policy decision
         tracer.beginSpan(LatencyTracer.SPAN_POLICY_EVAL)
-        val decision = policyBandit.decide(beliefState)
+        val decision = policyBandit.decide(beliefState, snapshot)
         val policyMs = tracer.endSpan(LatencyTracer.SPAN_POLICY_EVAL)
 
         val totalMs = tracer.endSpan(LatencyTracer.SPAN_TOTAL_LOCAL)

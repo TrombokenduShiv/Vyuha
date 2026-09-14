@@ -1,5 +1,4 @@
 {
-  "": "http://json-schema.org/draft-07/schema#",
   "title": "ContextSnapshot",
   "type": "object",
   "properties": {
@@ -29,6 +28,18 @@
         },
         "channel": {
           "type": "string"
+        },
+        "online_purchase": {
+          "type": "boolean"
+        },
+        "independently_verified": {
+          "type": "boolean"
+        },
+        "beneficiary_ref": {
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [
@@ -38,7 +49,10 @@
       ]
     },
     "communication": {
-      "type": "object",
+      "type": [
+        "object",
+        "null"
+      ],
       "properties": {
         "active": {
           "type": "boolean"
@@ -49,7 +63,10 @@
       ]
     },
     "device": {
-      "type": "object",
+      "type": [
+        "object",
+        "null"
+      ],
       "properties": {
         "capture_risk": {
           "type": "boolean"
@@ -64,7 +81,10 @@
       ]
     },
     "baseline": {
-      "type": "object",
+      "type": [
+        "object",
+        "null"
+      ],
       "properties": {
         "deviation_score": {
           "type": "number",
@@ -75,6 +95,16 @@
       "required": [
         "deviation_score"
       ]
+    },
+    "graph_risk_token": {
+      "anyOf": [
+        {
+          "$ref": "GraphRiskToken.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
     }
   },
   "required": [
@@ -84,5 +114,6 @@
     "communication",
     "device",
     "baseline"
-  ]
+  ],
+  "$schema": "http://json-schema.org/draft-07/schema#"
 }

@@ -1,287 +1,124 @@
-"""
-Vyuha 2.0 — Graph Data Loader
-================================
-Converts raw CSVs from the synthetic data generator into
-PyTorch Geometric HeteroData objects for HGT training.
+"""Causal snapshots, fixed feature units, disjoint train/val/cal/test labels.
 
-Node types: account, vpa, device, phone
-Edge types: account_sends_to_account, vpa_receives_from_vpa,
-            account_owns_vpa, device_accesses_account,
-            phone_associated_with_account
-
-Architecture ref: ADR-003, ARCHITECTURE_FREEZE_V1 §5 D5-D6.
+Synthetic static edges are assumed known at inception. Production ingestion
+must supply as-of relationships. Labels never enter features.
 """
-import os
+from pathlib import Path
+import hashlib
 import numpy as np
 import pandas as pd
 import torch
-from collections import defaultdict
 
-# ── Constants ──────────────────────────────────────────────────────
-DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../datasets/synthetic"))
-
-
-def _build_node_id_map(csv_path: str) -> dict:
-    """Build a mapping from string node ID to integer index."""
-    df = pd.read_csv(csv_path)
-    return {nid: idx for idx, nid in enumerate(df["id"].values)}
-
-
-def _compute_degree_features(edges_df: pd.DataFrame, src_col: str, dst_col: str,
-                              node_map: dict, num_nodes: int) -> np.ndarray:
-    """Compute in-degree, out-degree, and fan-in/fan-out ratio for nodes."""
-    out_deg = np.zeros(num_nodes, dtype=np.float32)
-    in_deg = np.zeros(num_nodes, dtype=np.float32)
-
-    for _, row in edges_df.iterrows():
-        src = row[src_col]
-        dst = row[dst_col]
-        if src in node_map:
-            out_deg[node_map[src]] += 1
-        if dst in node_map:
-            in_deg[node_map[dst]] += 1
-
-    total_deg = in_deg + out_deg
-    # Fan-in ratio: in_deg / total_deg (avoid div by zero)
-    fan_in_ratio = np.divide(in_deg, total_deg, out=np.zeros_like(in_deg),
-                             where=total_deg > 0)
-
-    return np.stack([in_deg, out_deg, total_deg, fan_in_ratio], axis=1)
+DATA_DIR = str(Path(__file__).resolve().parents[3] / "datasets/synthetic")
+FEATURE_VERSION = "fixed-log-v2"
+BASE_RELATIONS = {
+    ("account", "sends_to", "account"): "edges_account_sends_to_account",
+    ("vpa", "receives_from", "vpa"): "edges_vpa_receives_from_vpa",
+    ("account", "owns", "vpa"): "edges_account_owns_vpa",
+    ("device", "accesses", "account"): "edges_device_accesses_account",
+    ("phone", "associated_with", "account"): "edges_phone_associated_with_account",
+}
 
 
-def _compute_temporal_features(edges_df: pd.DataFrame, src_col: str, dst_col: str,
-                                node_map: dict, num_nodes: int) -> np.ndarray:
-    """Compute temporal activity features: mean inter-arrival time, tx count, amount stats."""
-    # Group by source node
-    tx_counts = np.zeros(num_nodes, dtype=np.float32)
-    amount_sums = np.zeros(num_nodes, dtype=np.float32)
-    amount_maxs = np.zeros(num_nodes, dtype=np.float32)
-
-    sorted_df = edges_df.sort_values("timestamp")
-
-    # Per-node timestamps for inter-arrival
-    node_timestamps = defaultdict(list)
-
-    for _, row in sorted_df.iterrows():
-        src = row[src_col]
-        if src in node_map:
-            idx = node_map[src]
-            tx_counts[idx] += 1
-            amt = row.get("amount", 0)
-            amount_sums[idx] += amt
-            amount_maxs[idx] = max(amount_maxs[idx], amt)
-            node_timestamps[idx].append(row["timestamp"])
-
-    # Mean inter-arrival time
-    mean_iat = np.zeros(num_nodes, dtype=np.float32)
-    for idx, ts_list in node_timestamps.items():
-        if len(ts_list) > 1:
-            diffs = np.diff(sorted(ts_list))
-            mean_iat[idx] = np.mean(diffs)
-
-    # Normalize
-    if tx_counts.max() > 0:
-        tx_counts_norm = tx_counts / tx_counts.max()
-    else:
-        tx_counts_norm = tx_counts
-    if amount_sums.max() > 0:
-        amount_sums_norm = amount_sums / amount_sums.max()
-    else:
-        amount_sums_norm = amount_sums
-    if amount_maxs.max() > 0:
-        amount_maxs_norm = amount_maxs / amount_maxs.max()
-    else:
-        amount_maxs_norm = amount_maxs
-    if mean_iat.max() > 0:
-        mean_iat_norm = mean_iat / mean_iat.max()
-    else:
-        mean_iat_norm = mean_iat
-
-    return np.stack([tx_counts_norm, amount_sums_norm, amount_maxs_norm, mean_iat_norm], axis=1)
+def _log(values, scale):
+    return np.clip(np.log1p(values) / np.log1p(scale), 0, 2).astype(np.float32)
 
 
-def load_hetero_data(split: str = "train"):
-    """
-    Load the synthetic graph data into a dictionary-based heterogeneous graph.
-
-    Args:
-        split: One of 'train', 'val', 'test', or 'full' (uses unsplit data).
-
-    Returns:
-        dict with keys:
-            - node_features: {node_type: Tensor}
-            - edge_index: {(src_type, edge_type, dst_type): Tensor}
-            - edge_attr: {(src_type, edge_type, dst_type): Tensor}
-            - labels: Tensor (for account nodes)
-            - label_mask: Tensor (which account nodes have labels)
-            - node_maps: {node_type: {str_id: int_idx}}
-    """
-    print(f"Loading heterogeneous graph data (split={split})...")
-
-    # ── Load node ID maps ────────────────────────────────────────
-    account_map = _build_node_id_map(os.path.join(DATA_DIR, "nodes_account.csv"))
-    vpa_map = _build_node_id_map(os.path.join(DATA_DIR, "nodes_vpa.csv"))
-    device_map = _build_node_id_map(os.path.join(DATA_DIR, "nodes_device.csv"))
-    phone_map = _build_node_id_map(os.path.join(DATA_DIR, "nodes_phone.csv"))
-
-    num_accounts = len(account_map)
-    num_vpas = len(vpa_map)
-    num_devices = len(device_map)
-    num_phones = len(phone_map)
-
-    print(f"  Nodes: {num_accounts} accounts, {num_vpas} VPAs, {num_devices} devices, {num_phones} phones")
-
-    # ── Load temporal edges ──────────────────────────────────────
-    suffix = f"_{split}" if split != "full" else ""
-    acc_tx_file = f"edges_account_sends_to_account{suffix}.csv"
-    vpa_tx_file = f"edges_vpa_receives_from_vpa{suffix}.csv"
-
-    acc_tx_path = os.path.join(DATA_DIR, acc_tx_file)
-    vpa_tx_path = os.path.join(DATA_DIR, vpa_tx_file)
-
-    if not os.path.exists(acc_tx_path):
-        print(f"  Warning: {acc_tx_file} not found, using full data")
-        acc_tx_path = os.path.join(DATA_DIR, "edges_account_sends_to_account.csv")
-        vpa_tx_path = os.path.join(DATA_DIR, "edges_vpa_receives_from_vpa.csv")
-
-    acc_tx_df = pd.read_csv(acc_tx_path)
-    vpa_tx_df = pd.read_csv(vpa_tx_path)
-
-    # ── Load static edges ────────────────────────────────────────
-    owns_vpa_df = pd.read_csv(os.path.join(DATA_DIR, "edges_account_owns_vpa.csv"))
-    dev_acc_df = pd.read_csv(os.path.join(DATA_DIR, "edges_device_accesses_account.csv"))
-    phone_acc_df = pd.read_csv(os.path.join(DATA_DIR, "edges_phone_associated_with_account.csv"))
-
-    print(f"  Edges: {len(acc_tx_df)} account_sends, {len(vpa_tx_df)} vpa_receives, "
-          f"{len(owns_vpa_df)} owns_vpa, {len(dev_acc_df)} device_access, {len(phone_acc_df)} phone_assoc")
-
-    # ── Compute node features ────────────────────────────────────
-    # Account features: degree + temporal
-    acc_degree = _compute_degree_features(acc_tx_df, "src", "dst", account_map, num_accounts)
-    acc_temporal = _compute_temporal_features(acc_tx_df, "src", "dst", account_map, num_accounts)
-    account_features = np.concatenate([acc_degree, acc_temporal], axis=1)  # 8-dim
-
-    # VPA features: degree from VPA transactions
-    vpa_degree = _compute_degree_features(vpa_tx_df, "src", "dst", vpa_map, num_vpas)
-    vpa_features = vpa_degree  # 4-dim
-
-    # Device features: just degree from device-account edges
-    dev_degree = np.zeros((num_devices, 4), dtype=np.float32)
-    for _, row in dev_acc_df.iterrows():
-        if row["src"] in device_map:
-            dev_degree[device_map[row["src"]], 1] += 1  # out-degree
-    device_features = dev_degree
-
-    # Phone features: degree
-    phone_degree = np.zeros((num_phones, 4), dtype=np.float32)
-    for _, row in phone_acc_df.iterrows():
-        if row["src"] in phone_map:
-            phone_degree[phone_map[row["src"]], 1] += 1
-    phone_features = phone_degree
-
-    # ── Build edge indices ───────────────────────────────────────
-    def build_edge_index(df, src_col, dst_col, src_map, dst_map):
-        src_ids = []
-        dst_ids = []
-        for _, row in df.iterrows():
-            s, d = row[src_col], row[dst_col]
-            if s in src_map and d in dst_map:
-                src_ids.append(src_map[s])
-                dst_ids.append(dst_map[d])
-        if len(src_ids) == 0:
-            return torch.zeros((2, 0), dtype=torch.long)
-        return torch.tensor([src_ids, dst_ids], dtype=torch.long)
-
-    def build_edge_attr(df, timestamp_col="timestamp", amount_col="amount"):
-        """Normalize timestamp and amount as edge features."""
-        if len(df) == 0:
-            return torch.zeros((0, 2), dtype=torch.float32)
-        ts = df[timestamp_col].values.astype(np.float64)
-        if ts.max() > ts.min():
-            ts_norm = (ts - ts.min()) / (ts.max() - ts.min())
-        else:
-            ts_norm = np.zeros_like(ts)
-        amt = df[amount_col].values.astype(np.float64) if amount_col in df.columns else np.zeros_like(ts)
-        if amt.max() > 0:
-            amt_norm = amt / amt.max()
-        else:
-            amt_norm = amt
-        return torch.tensor(np.stack([ts_norm, amt_norm], axis=1), dtype=torch.float32)
-
-    edge_index = {}
-    edge_attr = {}
-
-    # Temporal edges
-    edge_index[("account", "sends_to", "account")] = build_edge_index(
-        acc_tx_df, "src", "dst", account_map, account_map)
-    edge_attr[("account", "sends_to", "account")] = build_edge_attr(acc_tx_df)
-
-    edge_index[("vpa", "receives_from", "vpa")] = build_edge_index(
-        vpa_tx_df, "src", "dst", vpa_map, vpa_map)
-    edge_attr[("vpa", "receives_from", "vpa")] = build_edge_attr(vpa_tx_df)
-
-    # Static edges (no temporal features)
-    edge_index[("account", "owns", "vpa")] = build_edge_index(
-        owns_vpa_df, "src", "dst", account_map, vpa_map)
-    edge_index[("device", "accesses", "account")] = build_edge_index(
-        dev_acc_df, "src", "dst", device_map, account_map)
-    edge_index[("phone", "associated_with", "account")] = build_edge_index(
-        phone_acc_df, "src", "dst", phone_map, account_map)
-
-    # ── Load labels ──────────────────────────────────────────────
-    labels_df = pd.read_csv(os.path.join(DATA_DIR, "account_labels.csv"))
-    labels = np.zeros(num_accounts, dtype=np.float32)
-    label_mask = np.zeros(num_accounts, dtype=bool)
-    for _, row in labels_df.iterrows():
-        acc_id = row["account_id"]
-        if acc_id in account_map:
-            idx = account_map[acc_id]
-            labels[idx] = float(row["is_fraud"])
-            label_mask[idx] = True
-
-    fraud_count = int(labels.sum())
-    legit_count = int(label_mask.sum()) - fraud_count
-    print(f"  Labels: {fraud_count} fraud, {legit_count} legitimate "
-          f"({fraud_count / max(1, fraud_count + legit_count) * 100:.1f}% fraud rate)")
-
-    node_features = {
-        "account": torch.tensor(account_features, dtype=torch.float32),
-        "vpa": torch.tensor(vpa_features, dtype=torch.float32),
-        "device": torch.tensor(device_features, dtype=torch.float32),
-        "phone": torch.tensor(phone_features, dtype=torch.float32),
-    }
-
-    return {
-        "node_features": node_features,
-        "edge_index": edge_index,
-        "edge_attr": edge_attr,
-        "labels": torch.tensor(labels, dtype=torch.float32),
-        "label_mask": torch.tensor(label_mask, dtype=torch.bool),
-        "node_maps": {
-            "account": account_map,
-            "vpa": vpa_map,
-            "device": device_map,
-            "phone": phone_map,
-        },
-        "metadata": {
-            "num_nodes": {"account": num_accounts, "vpa": num_vpas,
-                         "device": num_devices, "phone": num_phones},
-            "feature_dims": {"account": 8, "vpa": 4, "device": 4, "phone": 4},
-        }
-    }
+def label_partition(identifier):
+    bucket = int(hashlib.sha256(identifier.encode()).hexdigest()[:8], 16) % 100
+    return "train" if bucket < 60 else "val" if bucket < 75 else "cal" if bucket < 85 else "test"
 
 
-if __name__ == "__main__":
-    print("=" * 60)
-    print("Vyuha 2.0 — Graph Data Loader Test")
-    print("=" * 60)
-
-    for split in ["train", "val", "test"]:
-        data = load_hetero_data(split)
-        print(f"\n[{split.upper()}]")
-        for ntype, feat in data["node_features"].items():
-            print(f"  {ntype}: {feat.shape}")
-        for etype, idx in data["edge_index"].items():
-            print(f"  {etype}: {idx.shape}")
-        print(f"  Labels sum (fraud): {data['labels'].sum().item():.0f}")
-        print()
+def load_hetero_data(split="train", data_dir=None):
+    if split not in {"train", "val", "cal", "test", "full"}:
+        raise ValueError("Unknown graph split")
+    root = Path(data_dir or DATA_DIR)
+    maps = {}
+    for kind in ("account", "vpa", "device", "phone"):
+        ids = pd.read_csv(root / f"nodes_{kind}.csv")["id"].astype(str)
+        if ids.duplicated().any():
+            raise ValueError(f"Duplicate {kind} identifier")
+        maps[kind] = {value: i for i, value in enumerate(ids)}
+    # Both temporal relations use the same clock. Missing splits fail explicitly.
+    train_tx = pd.read_csv(root / "edges_account_sends_to_account_train.csv")
+    val_tx = pd.read_csv(root / "edges_account_sends_to_account_val.csv")
+    train_cut, val_cut = float(train_tx.timestamp.max()), float(val_tx.timestamp.max())
+    cutoff = train_cut if split == "train" else val_cut if split in {"val", "cal"} else float("inf")
+    frames = {}
+    for relation, filename in BASE_RELATIONS.items():
+        df = pd.read_csv(root / f"{filename}.csv")
+        if "timestamp" in df:
+            for col in ("timestamp", "amount"):
+                if col in df and (not np.isfinite(df[col]).all() or (df[col] < 0).any()):
+                    raise ValueError(f"Invalid {col} in {filename}")
+            df = df[df.timestamp <= cutoff].copy()
+        src, _, dst = relation
+        if not df.src.isin(maps[src]).all() or not df.dst.isin(maps[dst]).all():
+            raise ValueError(f"Dangling edge in {filename}")
+        frames[relation] = df
+    tx = frames[("account", "sends_to", "account")]
+    as_of = float(tx.timestamp.max()) if len(tx) else 0.0
+    nodes, raw_stats = {}, {}
+    for kind in ("account", "vpa"):
+        rel = (kind, "sends_to" if kind == "account" else "receives_from", kind)
+        df, size = frames[rel], len(maps[kind])
+        src = df.src.map(maps[kind]).to_numpy(dtype=np.int64)
+        dst = df.dst.map(maps[kind]).to_numpy(dtype=np.int64)
+        incoming = np.bincount(dst, minlength=size).astype(float)
+        outgoing = np.bincount(src, minlength=size).astype(float)
+        total = incoming + outgoing
+        feats = [_log(incoming, 100), _log(outgoing, 100), _log(total, 200),
+                 np.divide(incoming, total, out=np.zeros(size), where=total > 0)]
+        if kind == "account":
+            sums = np.bincount(src, weights=df.amount, minlength=size)
+            maxs = np.zeros(size)
+            np.maximum.at(maxs, src, df.amount)
+            iat = np.zeros(size)
+            for account, values in df.sort_values("timestamp").groupby("src").timestamp:
+                if len(values) > 1:
+                    iat[maps[kind][account]] = np.diff(values).mean()
+            burst = np.where(outgoing > 1, np.exp(-iat / 3600), 0)
+            feats.extend([_log(outgoing, 100), _log(sums, 1e7), _log(maxs, 1e6), burst])
+            raw_stats = {"in_count": incoming, "out_count": outgoing,
+                         "mean_iat_seconds": iat, "activity_count": total}
+        nodes[kind] = torch.tensor(np.stack(feats, axis=1), dtype=torch.float32)
+    for kind, relation in [("device", "accesses"), ("phone", "associated_with")]:
+        degree = frames[(kind, relation, "account")].groupby("src").dst.nunique()
+        counts = np.array([degree.get(key, 0) for key in maps[kind]])
+        nodes[kind] = torch.tensor(np.stack([_log(counts, 10), counts > 1,
+                                            counts > 3, counts == 0], axis=1), dtype=torch.float32)
+    edge_index, edge_attr = {}, {}
+    for rel, df in frames.items():
+        src, name, dst = rel
+        indices = torch.tensor(np.stack([df.src.map(maps[src]), df.dst.map(maps[dst])]).astype(np.int64))
+        reverse = (dst, "rev_" + name, src)
+        edge_index[rel], edge_index[reverse] = indices, indices.flip(0)
+        if "timestamp" in df:
+            attrs = np.stack([(as_of - df.timestamp.to_numpy()) / 86400,
+                              _log(df.amount.to_numpy(), 1e6)], axis=1)
+            edge_attr[rel] = torch.tensor(attrs, dtype=torch.float32)
+            edge_attr[reverse] = edge_attr[rel]
+    labels = torch.zeros(len(maps["account"]))
+    masks = {name: torch.zeros(len(labels), dtype=torch.bool) for name in ("train", "val", "cal", "test")}
+    label_df = pd.read_csv(root / "account_labels.csv")
+    if label_df.account_id.duplicated().any() or not label_df.is_fraud.isin([0, 1]).all():
+        raise ValueError("Invalid account labels")
+    for row in label_df.itertuples():
+        if row.account_id not in maps["account"]:
+            raise ValueError("Label references missing account")
+        i = maps["account"][row.account_id]
+        labels[i] = float(row.is_fraud)
+        masks[label_partition(row.account_id)][i] = True
+    active = torch.tensor(raw_stats["activity_count"] > 0)
+    masks = {k: v & active for k, v in masks.items()}
+    owns = frames[("account", "owns", "vpa")]
+    if owns.dst.duplicated().any():
+        raise ValueError("Ambiguous VPA ownership")
+    return {"node_features": nodes, "edge_index": edge_index, "edge_attr": edge_attr,
+            "labels": labels, "label_mask": masks[split] if split != "full" else active,
+            "label_masks": masks, "node_maps": maps, "account_stats": raw_stats,
+            "vpa_to_account": dict(zip(owns.dst, owns.src)),
+            "metadata": {"feature_dims": {k: v.shape[1] for k, v in nodes.items()},
+                         "feature_version": FEATURE_VERSION, "as_of": as_of,
+                         "split": split, "static_edges_assumed_at_inception": True,
+                         "num_nodes": {k: len(v) for k, v in maps.items()}}}

@@ -41,8 +41,8 @@ def add_transaction(src_acc, dst_acc, amount, ts, is_fraud=False):
     })
     # For MVP, assume 1-to-1 mapping of account to VPA for simplicity in transactions, 
     # or just pick the first VPA of the account.
-    src_vpa = f"vpa_{src_acc}"
-    dst_vpa = f"vpa_{dst_acc}"
+    src_vpa = src_acc.replace("acc_", "vpa_", 1)
+    dst_vpa = dst_acc.replace("acc_", "vpa_", 1)
     vpa_receives_from_vpa.append({
         'src': src_vpa, 'dst': dst_vpa, 'amount': amount, 'timestamp': ts.timestamp(), 'is_fraud': int(is_fraud)
     })

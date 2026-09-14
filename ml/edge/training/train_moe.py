@@ -26,6 +26,7 @@ import torch.optim as optim
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")))
 
 from ml.edge.experts.moe import EdgeRiskMoE
+from ml.artifacts import save_checkpoint
 
 CHECKPOINT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../checkpoints"))
 os.makedirs(CHECKPOINT_DIR, exist_ok=True)
@@ -40,11 +41,11 @@ def generate_synthetic_data(n_samples: int = 10000, fraud_rate: float = 0.15, se
         [1] capture_risk (0 or 1)
         [2] amount_bucket_norm (0.0-1.0: LOW=0.1, MED=0.3, HIGH=0.6, CRIT=1.0)
         [3] beneficiary_novelty (0.0-1.0)
-        [4] graph_risk_score (0.0-1.0)
+        [4] reserved (ignored; counterparty is independently evaluated)
         [5] deviation_score (0.0-1.0)
 
     Labels:
-        0 = legitimate, 1 = coercion/fraud
+        0 = no coercion, 1 = coercion (not general payment fraud)
     """
     np.random.seed(seed)
 
@@ -75,6 +76,14 @@ def generate_synthetic_data(n_samples: int = 10000, fraud_rate: float = 0.15, se
     features[idx:, 5] = np.random.beta(7, 3, n_fraud)  # Higher deviation
     labels[idx:] = 1
 
+    # Counterparty is independent: calm buyers can pay fraudulent receivers.
+    features[:, 4] = np.random.random(n_samples)
+    # Include benign calls, accessibility-like device flags, large/new payments.
+    hard = np.arange(0, n_legit, 4)
+    features[hard, 0] = (np.random.random(len(hard)) < 0.4)
+    features[hard, 1] = (np.random.random(len(hard)) < 0.1)
+    features[hard, 2:4] = np.random.random((len(hard), 2))
+    features[hard, 5] = np.random.random(len(hard))
     # Shuffle
     perm = np.random.permutation(n_samples)
     features = features[perm]
@@ -110,6 +119,8 @@ def train(epochs: int = 50, lr: float = 1e-3, batch_size: int = 256,
           device_str: str = "cpu"):
     """Full MoE training pipeline."""
     device = torch.device(device_str)
+    torch.manual_seed(42)
+    torch.set_num_threads(2)
 
     print("=" * 60)
     print("Vyuha 2.0 — Edge MoE Training Pipeline")
@@ -198,7 +209,10 @@ def train(epochs: int = 50, lr: float = 1e-3, batch_size: int = 256,
                 best_val_loss = val_loss
                 best_epoch = epoch
                 ckpt_path = os.path.join(CHECKPOINT_DIR, "moe_best.pt")
-                torch.save({
+                save_checkpoint({
+                    "schema_version": 2,
+                    "objective": "agency_only",
+                    "data_kind": "synthetic",
                     "epoch": epoch,
                     "model_state_dict": model.state_dict(),
                     "val_loss": val_loss,

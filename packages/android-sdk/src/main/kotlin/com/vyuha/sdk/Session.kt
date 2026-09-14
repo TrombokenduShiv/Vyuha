@@ -37,7 +37,8 @@ class Session internal constructor(
     private val initialAmountBucket: AmountBucket? = null,
     private val initialBeneficiaryNovelty: Double? = null,
     private val initialChannel: String? = null,
-    initialGraphToken: GraphRiskToken? = null
+    initialGraphToken: GraphRiskToken? = null,
+    private val initialOnlinePurchase: Boolean = false
 ) {
     // ── Pipeline components ─────────────────────────────────────────
     private val contextAggregator = ContextAggregator()
@@ -52,6 +53,8 @@ class Session internal constructor(
     // ── State ───────────────────────────────────────────────────────
     private var currentSnapshot: ContextSnapshot? = null
     private var graphToken: GraphRiskToken? = initialGraphToken
+    @Volatile private var requestedBeneficiary: String? = initialVpaHash
+    @Volatile private var graphGeneration: Long = 0
     private var lastDecision: InterventionDecision? = null
     private var lastBelief: BeliefState? = null
 
@@ -82,16 +85,21 @@ class Session internal constructor(
      * 4. null → graphMissing = true (fail-safe)
      */
     suspend fun prefetchGraphRisk(beneficiaryVpaHash: String) {
+        check(state != State.COMPLETED)
+        val generation = ++graphGeneration
+        requestedBeneficiary = beneficiaryVpaHash
+        graphToken = null
+        if (vyuhaConfig.offlineMode) return
         // 1. Check cache first
         when (val cacheResult = tokenCache.get(beneficiaryVpaHash)) {
             is GraphTokenCache.CacheResult.Hit -> {
-                graphToken = cacheResult.token
+                if (cacheResult.token.sessionId == sessionId) graphToken = cacheResult.token
                 return
             }
             is GraphTokenCache.CacheResult.StaleHit -> {
                 // Try network, fall back to stale
                 val networkToken = fetchFromNetwork(beneficiaryVpaHash)
-                graphToken = networkToken ?: cacheResult.token
+                if (generation == graphGeneration && state != State.COMPLETED) graphToken = networkToken
                 return
             }
             is GraphTokenCache.CacheResult.Miss -> {
@@ -101,6 +109,7 @@ class Session internal constructor(
 
         // 2. Fetch from network
         val networkToken = fetchFromNetwork(beneficiaryVpaHash)
+        if (generation != graphGeneration || state == State.COMPLETED) return
         if (networkToken != null) {
             tokenCache.put(beneficiaryVpaHash, networkToken)
         }
@@ -129,6 +138,13 @@ class Session internal constructor(
      * Called by the host app whenever relevant signals change.
      */
     fun updateContext(snapshot: ContextSnapshot) {
+        check(state != State.COMPLETED)
+        require(snapshot.transaction.beneficiaryNovelty.isFinite() && snapshot.transaction.beneficiaryNovelty in 0.0..1.0)
+        if (snapshot.transaction.beneficiaryRef != null && snapshot.transaction.beneficiaryRef != requestedBeneficiary) {
+            graphToken = null
+            graphGeneration++
+            requestedBeneficiary = snapshot.transaction.beneficiaryRef
+        }
         currentSnapshot = snapshot.copy(sessionId = sessionId)
     }
 
@@ -145,6 +161,7 @@ class Session internal constructor(
         overlayRisk: Boolean? = null,
         deviationScore: Double? = null
     ) {
+        check(state != State.COMPLETED)
         communicationActive?.let { this.communicationActive = it }
         captureRisk?.let { this.captureRisk = it }
         overlayRisk?.let { this.overlayRisk = it }
@@ -152,7 +169,7 @@ class Session internal constructor(
 
         // Rebuild the snapshot from current state
         if (initialAmountBucket != null && initialBeneficiaryNovelty != null) {
-            currentSnapshot = contextAggregator.aggregate(
+            val assembled = contextAggregator.aggregate(
                 sessionId = sessionId,
                 amountBucket = initialAmountBucket,
                 beneficiaryNovelty = initialBeneficiaryNovelty,
@@ -163,6 +180,8 @@ class Session internal constructor(
                 deviationScore = this.deviationScore,
                 graphRiskToken = graphToken
             )
+            currentSnapshot = assembled.copy(transaction = assembled.transaction.copy(
+                beneficiaryRef = initialVpaHash, onlinePurchase = initialOnlinePurchase))
         }
     }
 
@@ -181,12 +200,12 @@ class Session internal constructor(
         val snapshot = currentSnapshot
             ?: throw IllegalStateException("updateContext() must be called before evaluate()")
 
-        val decision = pipeline.evaluate(snapshot)
+        val now = System.currentTimeMillis() / 1000
+        val fresh = graphToken?.takeIf { it.expiresAt > now && it.sessionId == sessionId && it.vpaHash == requestedBeneficiary }
+        val decision = pipeline.evaluate(snapshot.copy(graphRiskToken = fresh))
         lastDecision = decision
 
-        if (decision.actionId != ActionId.A0_PASS) {
-            state = State.INTERVENTION_PENDING
-        }
+        state = if (decision.actionId != ActionId.A0_PASS) State.INTERVENTION_PENDING else State.ACTIVE
 
         return decision
     }
@@ -207,6 +226,12 @@ class Session internal constructor(
         check(state == State.INTERVENTION_PENDING) {
             "No pending intervention to respond to."
         }
+        if (response == UserResponse.CANCELLED) {
+            val decision = requireNotNull(lastDecision)
+            complete(FinalStatus.PAYMENT_CANCELLED)
+            return decision
+        }
+        // A button click cannot erase receiver risk or prove a call has ended.
         state = State.ACTIVE
 
         // Re-evaluate with updated context
@@ -223,6 +248,14 @@ class Session internal constructor(
         state = State.COMPLETED
         sessionJob.cancel() // Cancel any inflight async operations
         pipeline.reset()
+        graphGeneration++
+        graphToken = null
+        tokenCache.clear()
+        currentSnapshot = null
+        communicationActive = false
+        captureRisk = false
+        overlayRisk = false
+        deviationScore = 0.0
 
         return OutcomeFeedback(
             sessionId = sessionId,

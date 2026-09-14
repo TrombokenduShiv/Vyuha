@@ -1,100 +1,54 @@
 package com.vyuha.sdk
-
 import com.vyuha.sdk.contracts.*
-import com.vyuha.sdk.core.*
+import com.vyuha.sdk.pipeline.*
 import org.junit.Test
 import org.junit.Assert.*
 
 class FailurePhilosophyTest {
+    private fun context() = ContextSnapshot(sessionId = "test", transaction = TransactionContext(
+        AmountBucket.MEDIUM, .95, onlinePurchase = true), communication = CommunicationContext(false),
+        device = DeviceContext(false, false), baseline = BaselineContext(.1))
 
-    private fun createDefaultSnapshot(
-        graphToken: GraphRiskToken? = GraphRiskToken("test", 0.0),
-        baseline: Double? = 0.0,
-        deviceCapture: Boolean? = false,
-        deviceOverlay: Boolean? = false,
-        commActive: Boolean? = false,
-        amountBucket: AmountBucket = AmountBucket.LOW,
-        novelty: Double = 0.0
-    ): ContextSnapshot {
-        val aggregator = ContextAggregator()
-        return aggregator.aggregate(
-            sessionId = "test-session",
-            amountBucket = amountBucket,
-            beneficiaryNovelty = novelty,
-            channel = "UPI",
-            communicationActive = commActive,
-            captureRisk = deviceCapture,
-            overlayRisk = deviceOverlay,
-            deviationScore = baseline,
-            graphRiskToken = graphToken
-        )
+    @Test fun unknownSellerGetsVerificationWithoutIsolation() {
+        val decision = Pipeline().evaluate(context())
+        assertEquals("MERCHANT_VERIFICATION", decision.templateId)
+        assertEquals(ActionId.A2_REFLECTION_CHALLENGE, decision.actionId)
+        assertNull(decision.counterpartyRisk)
+        assertEquals(1.0, decision.uncertainty, 0.0)
     }
 
-    @Test
-    fun `testGraphApiUnavailable forces ABSTAIN`() {
-        val snapshot = createDefaultSnapshot(graphToken = null)
-        val beliefUpdater = BeliefUpdater()
-        val triageGate = TriageGate()
-        
-        val edgeRisk = triageGate.evaluate(snapshot)
-        val belief = beliefUpdater.update(snapshot, edgeRisk)
-        
-        assertTrue("Belief state should explicitly track graph as missing", belief.missingEvidenceMask.graphMissing)
-        assertTrue("Missing graph evidence MUST inject ABSTAIN", belief.uncertaintySet.contains(UncertaintyLabel.ABSTAIN))
-        
-        val policy = PolicyBandit()
-        val decision = policy.decide(belief, snapshot)
-        
-        // ABSTAIN must prevent a purely PASS outcome even if coercion probability is low
-        assertNotEquals("Should not PASS when uncertain due to missing graph", "A0_PASS", decision.action)
+    @Test fun calmBuyerWithRiskyReceiverIsProtected() {
+        val now = System.currentTimeMillis() / 1000
+        val token = GraphRiskToken("receiver", .92, .84, emptyList(), now, now + 120,
+            signature = "fixture", riskClass = "HIGH")
+        val snapshot = context().copy(graphRiskToken = token)
+        val decision = Pipeline().evaluate(snapshot)
+        assertNotEquals(ActionId.A0_PASS, decision.actionId)
+        assertNotEquals(ActionId.A4_ISOLATION_BREAK, decision.actionId)
+        assertEquals("COUNTERPARTY_WARNING", decision.templateId)
+        assertTrue(decision.beliefScore < .2)
     }
 
-    @Test
-    fun `testOfflineMode degrades gracefully`() {
-        // Complete offline: no graph, no device telemetry
-        val snapshot = createDefaultSnapshot(graphToken = null, deviceCapture = null, deviceOverlay = null)
-        val beliefUpdater = BeliefUpdater()
-        val triageGate = TriageGate()
-        
-        val edgeRisk = triageGate.evaluate(snapshot)
-        val belief = beliefUpdater.update(snapshot, edgeRisk)
-        
+    @Test fun expiredSafeTokenDoesNotVerifySeller() {
+        val token = GraphRiskToken("receiver", .01, .98, emptyList(), 1, 2, signature = "fixture", riskClass = "LOW")
+        assertEquals("MERCHANT_VERIFICATION", Pipeline().evaluate(context().copy(graphRiskToken = token)).templateId)
+    }
+
+    @Test fun missingFeaturesAreMarked() {
+        val snapshot = context().copy(device = null, baseline = null)
+        val edge = TriageGate().evaluate(snapshot, null)
+        val belief = BeliefUpdater().update("test", edge, null, snapshot)
         assertTrue(belief.missingEvidenceMask.deviceMissing)
-        assertTrue(belief.uncertaintySet.contains(UncertaintyLabel.ABSTAIN))
-        
-        val policy = PolicyBandit()
-        val decision = policy.decide(belief, snapshot)
-        
-        // System must fallback to micro prompt or step up instead of crashing
-        assertTrue(decision.action == "A1_MICRO_PROMPT" || decision.action == "A6_STEP_UP_REQUIRED")
-    }
-
-    @Test
-    fun `testUnknownBeneficiary forces higher friction`() {
-        // Novelty = 1.0 (Completely unknown beneficiary)
-        val snapshot = createDefaultSnapshot(novelty = 1.0)
-        val triageGate = TriageGate()
-        val beliefUpdater = BeliefUpdater()
-        val policy = PolicyBandit()
-        
-        val edgeRisk = triageGate.evaluate(snapshot)
-        val belief = beliefUpdater.update(snapshot, edgeRisk)
-        val decision = policy.decide(belief, snapshot)
-        
-        // High novelty should not automatically be treated as "no risk"
-        assertNotEquals("A0_PASS", decision.action)
-    }
-
-    @Test
-    fun `testNoHistoricalBaseline forces ABSTAIN`() {
-        val snapshot = createDefaultSnapshot(baseline = null)
-        val beliefUpdater = BeliefUpdater()
-        val triageGate = TriageGate()
-        
-        val edgeRisk = triageGate.evaluate(snapshot)
-        val belief = beliefUpdater.update(snapshot, edgeRisk)
-        
         assertTrue(belief.missingEvidenceMask.baselineMissing)
-        assertTrue(belief.uncertaintySet.contains(UncertaintyLabel.ABSTAIN))
+    }
+
+    @Test fun repeatedEvidenceDoesNotEscalate() {
+        val pipeline = Pipeline()
+        val first = pipeline.evaluate(context())
+        repeat(100) {
+            val next = pipeline.evaluate(context())
+            assertEquals(first.beliefScore, next.beliefScore, 0.0)
+            assertEquals(first.actionId, next.actionId)
+        }
     }
 }

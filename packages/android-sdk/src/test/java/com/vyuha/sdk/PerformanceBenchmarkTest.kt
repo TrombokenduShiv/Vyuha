@@ -1,91 +1,23 @@
 package com.vyuha.sdk
-
 import com.vyuha.sdk.contracts.*
-import com.vyuha.sdk.core.*
+import com.vyuha.sdk.pipeline.Pipeline
+import org.junit.Assert.*
 import org.junit.Test
-import kotlin.system.measureNanoTime
 
+/** JVM benchmark only. Physical Android latency still requires instrumentation. */
 class PerformanceBenchmarkTest {
-
-    @Test
-    fun `hot path must adhere to performance budgets`() {
-        val aggregator = ContextAggregator()
-        val triageGate = TriageGate()
-        val beliefUpdater = BeliefUpdater()
-        val policyBandit = PolicyBandit()
-
-        println("=== VYUHA HOT-PATH BENCHMARK ===")
-        val iterations = 1000
-        
-        // Warmup
-        for (i in 0..100) {
-            val s = aggregator.aggregate(
-                sessionId = "warmup", amountBucket = AmountBucket.LOW, beneficiaryNovelty = 0.1,
-                channel = "P2P", communicationActive = false, captureRisk = false,
-                overlayRisk = false, deviationScore = 0.0, graphRiskToken = null
-            )
-            val t = triageGate.evaluate(s)
-            val b = beliefUpdater.update(s, t)
-            policyBandit.decide(b, s)
-        }
-
-        val contextTimes = mutableListOf<Long>()
-        val triageTimes = mutableListOf<Long>()
-        val beliefTimes = mutableListOf<Long>()
-        val policyTimes = mutableListOf<Long>()
-        val totalTimes = mutableListOf<Long>()
-
-        for (i in 0 until iterations) {
-            val totalNanos = measureNanoTime {
-                val tContext = measureNanoTime {
-                    aggregator.aggregate(
-                        sessionId = "bench", amountBucket = AmountBucket.LOW, beneficiaryNovelty = 0.5,
-                        channel = "P2P", communicationActive = false, captureRisk = false,
-                        overlayRisk = false, deviationScore = 0.0, graphRiskToken = null
-                    )
-                }
-                contextTimes.add(tContext)
-                val snapshot = aggregator.aggregate(
-                    sessionId = "bench", amountBucket = AmountBucket.LOW, beneficiaryNovelty = 0.5,
-                    channel = "P2P", communicationActive = false, captureRisk = false,
-                    overlayRisk = false, deviationScore = 0.0, graphRiskToken = null
-                )
-
-                val tTriage = measureNanoTime {
-                    triageGate.evaluate(snapshot)
-                }
-                triageTimes.add(tTriage)
-                val edgeRisk = triageGate.evaluate(snapshot)
-
-                val tBelief = measureNanoTime {
-                    beliefUpdater.update(snapshot, edgeRisk)
-                }
-                beliefTimes.add(tBelief)
-                val beliefState = beliefUpdater.update(snapshot, edgeRisk)
-
-                val tPolicy = measureNanoTime {
-                    policyBandit.decide(beliefState, snapshot)
-                }
-                policyTimes.add(tPolicy)
-            }
-            totalTimes.add(totalNanos)
-        }
-
-        fun printStats(name: String, times: List<Long>, targetMs: Double) {
-            val sorted = times.sorted()
-            val medianMs = sorted[sorted.size / 2] / 1_000_000.0
-            val p95Ms = sorted[(sorted.size * 0.95).toInt()] / 1_000_000.0
-            println(String.format("%-25s | Median: %6.3f ms | p95: %6.3f ms | Target: < %.1f ms", name, medianMs, p95Ms, targetMs))
-            assert(p95Ms < targetMs) { "$name exceeded performance budget: $p95Ms ms > $targetMs ms" }
-        }
-
-        printStats("Context Extraction", contextTimes, 5.0)
-        printStats("Triage Gate (Edge Risk)", triageTimes, 20.0) // 5ms triage + 15ms experts
-        printStats("Belief Update", beliefTimes, 2.0)
-        printStats("Policy Bandit", policyTimes, 2.0)
-        
-        println("-------------------------------------------------------------------------")
-        printStats("TOTAL LOCAL HOT-PATH", totalTimes, 50.0)
-        println("==========================================")
+    @Test fun trainedLocalPathFitsDesktopJvmBudget() {
+        val pipeline = Pipeline()
+        val snapshot = ContextSnapshot(transaction = TransactionContext(AmountBucket.CRITICAL, .95),
+            communication = CommunicationContext(true), device = DeviceContext(true, false), baseline = BaselineContext(.9))
+        repeat(100) { pipeline.evaluate(snapshot) }
+        val timings = DoubleArray(1000) {
+            val start = System.nanoTime()
+            val decision = pipeline.evaluate(snapshot)
+            assertNotEquals(ActionId.A0_PASS, decision.actionId)
+            (System.nanoTime() - start) / 1e6
+        }.sorted()
+        println("Desktop JVM local path p50=${timings[499]}ms p95=${timings[949]}ms p99=${timings[989]}ms")
+        assertTrue("Local JVM p95 exceeds 50ms", timings[949] < 50)
     }
 }

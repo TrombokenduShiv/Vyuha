@@ -1,81 +1,54 @@
-# Vyuha 2.0: Agency Integrity Layer
+# Vyuha 2.1 — agency and counterparty integrity
 
-**"Authentication protects identity. Vyuha protects intent."**
+Vyuha is an embedded payment-safety SDK for cooperating banks and payment providers. It asks two independent questions before authorization: **could someone be influencing this decision, and does the receiver show financial-network risk?** A calm customer paying a fraudulent online seller is protected by the counterparty path without an irrelevant isolation prompt.
 
-Vyuha is an **Edge-AI behavioral defense SDK** designed to detect when a legitimate, authenticated user is authorizing a transaction under live psychological coercion, social engineering, or remote influence (e.g., "digital arrest" scams). 
+The repository includes trained synthetic-data models, a Kotlin edge runtime, a temporal heterogeneous graph model, a signed graph-risk API, a frozen offline policy, an Android host simulator and a dashboard that replays measured synthetic scenarios. The bank owns final authorization.
 
-Instead of relying solely on post-transaction fraud detection, Vyuha operates as a lightweight OODA loop on the edge, interpreting the user's real-time behavioral state (coercion belief) combined with institutional graph intelligence (mule-ring detection) to introduce proportionate friction *before* the transaction is authorized.
+Start with the [plain-language project guide](docs/VYUHA_PROJECT_GUIDE.md), [measured validation report](docs/VALIDATION_REPORT_2026-09-14.md), [deployment runbook](docs/DEPLOYMENT_RUNBOOK.md), [architecture amendment](docs/decisions/ADR-005-dual-integrity-and-evidence.md), and [signal inventory](privacy/signal-manifest.json). The amendment supersedes conflicting V1 descriptions.
 
-## Architecture Overview
+## Implemented
 
-Vyuha uses a strict hybrid architecture, ensuring privacy, offline safety, and institutional data security.
+- Real multi-head HGT with reverse relationships, relative time and amount encoding, strict graph validation, separate label partitions and calibration.
+- HGT snapshot serving with constant-time receiver lookup, refresh, explicit UNKNOWN for missing/stale history, and RSA-signed recipient/session-bound tokens.
+- Trained five-expert, top-two agency MoE. The exported weights run locally in Kotlin; receiver evidence cannot contaminate agency scores.
+- Offline policy training using the actual MoE, separate calibration scenarios and declared simulated outcome assumptions. Runtime constraints override unsafe table choices.
+- Social-commerce, coercion, known-payee and offline scenarios; Python, API and Kotlin tests; export parity checks; budgets that distinguish desktop, API and unmeasured Android performance.
 
-1. **Edge Agency Runtime (On-Device SDK):**
-   - **Triage Gate & Sparse Risk-MoE:** Evaluates local telemetry (communication state, device capture risk, baseline deviation, transaction novelty).
-   - **Coercion Belief State:** Maintains a sequential $P(Coercion)$ log-odds score.
-   - **Contextual Policy Bandit:** A frozen, offline-trained policy that maps the belief state and uncertainty to one of 7 intervention actions (A0-A6).
-   
-2. **Institutional Graph Intelligence (Server-Side):**
-   - **Heterogeneous ST-GNN:** Evaluates beneficiary risk across a temporal graph of Accounts, VPAs, Devices, and Phones.
-   - **Signed Risk Token:** Issues a privacy-safe `GraphRiskToken` to the device. The raw graph is *never* exposed to the handset.
+## Run locally
 
-> For deep architectural details, decisions, and system diagrams, please refer to [docs/ARCHITECTURE_FREEZE_V1.md](docs/ARCHITECTURE_FREEZE_V1.md).
+Use Python 3.12 and a project virtual environment. Install `ml/requirements.txt`; the graph uses native PyTorch and does not require PyG/scatter/sparse compiled extensions. The tested package versions are in `ml/requirements-lock.txt`.
 
-## Intervention Space (A0 - A6)
-
-Vyuha applies the minimum effective friction needed to break the scammer's synchronous control loop:
-- **A0 (PASS):** No friction (95%+ of normal transactions).
-- **A1 (MICRO_PROMPT):** A quick, low-cost context question.
-- **A2 (REFLECTION_CHALLENGE):** Re-anchors attention to the recipient.
-- **A3 (COOLING_DELAY):** Intentional 15-30s pause.
-- **A4 (ISOLATION_BREAK):** Requires active communication/screen-sharing to end.
-- **A5 (TRUSTED_VERIFY):** Invokes the Safety Circle (minimal disclosure).
-- **A6 (STEP_UP_REQUIRED):** Final denial delegated to the host bank.
-
-## Installation Instructions
-
-*Note: As this repository is currently under active hackathon development, the following instructions reflect the intended build process for the prototype.*
-
-### Prerequisites
-- **Android:** Android Studio (Koala or later), JDK 17, Android SDK 34+
-- **Backend:** Python 3.10+, PyTorch, PyTorch Geometric
-- **Node:** (Optional) for the Judge Dashboard web interface.
-
-### 1. Start the Institutional Graph Service (Simulator)
-The graph backend simulates the bank's ST-GNN and issues signed risk tokens.
-```bash
-# Navigate to the graph API service
-cd services/graph-risk-api
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Start the mock issuer service
-python main.py --port 8080
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests -q
+.\.venv\Scripts\python.exe -m ml.evaluate_e2e
+.\.venv\Scripts\python.exe -m ml.benchmark --iterations 500
 ```
 
-### 2. Build the Android SDK and Host App
-The Android project contains both the `vyuha-core.aar` SDK and the `VyuhaBank` host simulator.
-```bash
-# Navigate to the Android project root
-cd apps/android-demo
+Start the real graph service with explicit synthetic-demo authorization:
 
-# Build the SDK and the App
-./gradlew assembleDebug
+```powershell
+$env:VYUHA_DEMO_MODE = '1'
+.\.venv\Scripts\python.exe services/graph-risk-api/main.py --port 8080
 ```
-Deploy the resulting APK to a physical Android device or emulator running API 26+.
 
-## Usage Instructions (Demo)
+The service binds to localhost. [Interactive API documentation](http://127.0.0.1:8080/docs) is available while it runs. A normal institutional configuration requires an API key, audience and signing key. Synthetic checkpoints are rejected outside demo mode.
 
-1. **Launch VyuhaBank:** Open the host bank application on your device.
-2. **Benign Flow:** Initiate a payment to a known contact under normal conditions. The transaction will clear instantly (A0_PASS).
-3. **Coercion Flow:** 
-   - Start an active phone call (or simulate one in the debug menu).
-   - Attempt a high-value transfer to a novel VPA.
-   - The graph service will flag the VPA, and the Edge SDK will calculate a high Coercion Belief.
-   - Observe the **Isolation Break (A4)** or **Safety Circle (A5)** intervention taking over the screen.
-4. **Offline Mode:** Disconnect the device from the internet. Try the flows again. Vyuha will fail-safe, gracefully substituting the graph signal with `UNKNOWN` and maintaining local behavioral protection.
+Retrain and export all models:
 
----
-**Team The Syndicates:** Trombokendu, Sneha, Aditya, Alaukik
-*(Built for ByteBuilt 1.0)*
+```powershell
+.\.venv\Scripts\python.exe -m ml.train_all
+.\.venv\Scripts\python.exe -m scripts.export_sdk_test_vectors
+.\scripts\test_sdk.ps1 -Download
+```
+
+The PowerShell SDK harness compiles the non-Android SDK code and runs JVM tests, including native-weight parity. It is not an APK build or physical-device test. An Android SDK and compatible Gradle/JDK installation are still required for `:apps:android-demo:assembleDebug` and instrumentation.
+
+The dashboard is the existing Vite application in `apps/judge-dashboard`. Run its `dev`, `build` and `lint` scripts with the project's Node installation. It replays `E2E_REPORT.json`, generated by the evaluation command; it does not fabricate live model latency or network topology.
+
+## Evidence and release limits
+
+The generated [receiver report](datasets/synthetic/MVP_REPORT.json), [scenario report](datasets/synthetic/E2E_REPORT.json), [benchmark report](datasets/synthetic/BENCHMARK_REPORT.json) and model cards in `exports/` describe the measured artifacts. Synthetic accuracy is not production fraud accuracy. `--require-all` makes the benchmark fail when any declared budget is unmeasured, including physical Android budgets.
+
+Vyuha is designed for DPDP-aligned deployment through limited features, local inference and controlled data boundaries. It is not a compliance certificate. Real deployment requires institutional data access, secure gateway and key operations, notice and processing-basis review, rights and retention procedures, human-factors testing and bank authorization integration. The guide explains each gap.
+
+Team The Syndicates: Trombokendu, Sneha, Aditya and Alaukik. Built for ByteBuilt 1.0.

@@ -27,9 +27,10 @@ class PipelineTest {
                 riskScore = 0.05,
                 confidence = 0.95,
                 reasonCodes = emptyList(),
-                issuedAt = 0,
-                expiresAt = 0,
-                signature = "sig"
+                issuedAt = System.currentTimeMillis() / 1000,
+                expiresAt = System.currentTimeMillis() / 1000 + 120,
+                signature = "sig",
+                riskClass = "LOW"
             )
         )
 

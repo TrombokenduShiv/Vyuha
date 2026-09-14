@@ -11,6 +11,7 @@
 package com.vyuha.sdk.contracts
 
 import java.util.UUID
+import com.google.gson.annotations.SerializedName
 
 // ── Enums ───────────────────────────────────────────────────────────
 
@@ -43,7 +44,10 @@ enum class GroundTruthLabel { FRAUD, LEGITIMATE, UNKNOWN }
 data class TransactionContext(
     val amountBucket: AmountBucket,
     val beneficiaryNovelty: Double,
-    val channel: String = "UPI"
+    val channel: String = "UPI",
+    val onlinePurchase: Boolean = false,
+    val independentlyVerified: Boolean = false,
+    val beneficiaryRef: String? = null
 )
 
 data class CommunicationContext(
@@ -88,14 +92,23 @@ data class EdgeRiskOutput(
 // ── GraphRiskToken (contracts/GraphRiskToken.schema.json) ───────────
 
 data class GraphRiskToken(
-    val vpaHash: String,
-    val riskScore: Double,
+    @SerializedName("vpa_hash") val vpaHash: String,
+    @SerializedName("risk_score") val riskScore: Double?,
     val confidence: Double,
-    val reasonCodes: List<String>,
-    val issuedAt: Long,
-    val expiresAt: Long,
-    val modelVersion: String = "hgt-v0.1-mock",
-    val signature: String
+    @SerializedName("reason_codes") val reasonCodes: List<String>,
+    @SerializedName("issued_at") val issuedAt: Long,
+    @SerializedName("expires_at") val expiresAt: Long,
+    @SerializedName("model_version") val modelVersion: String = "unavailable",
+    val signature: String,
+    @SerializedName("risk_class") val riskClass: String = "UNKNOWN",
+    @SerializedName("session_id") val sessionId: String = "",
+    val audience: String = "",
+    @SerializedName("schema_version") val schemaVersion: Int = 1,
+    val algorithm: String = "",
+    @SerializedName("key_id") val keyId: String = "",
+    @SerializedName("signed_payload") val signedPayload: String = "",
+    @SerializedName("graph_as_of") val graphAsOf: Long = 0,
+    @SerializedName("data_kind") val dataKind: String = "unknown"
 )
 
 // ── BeliefState (contracts/BeliefState.schema.json) ─────────────────
@@ -127,7 +140,9 @@ data class InterventionDecision(
     val actionId: ActionId,
     val beliefScore: Double,
     val uncertainty: Double,
-    val reasonCodes: List<String>
+    val reasonCodes: List<String>,
+    val counterpartyRisk: Double? = null,
+    val templateId: String = "REFLECTION"
 )
 
 // ── SafetyCircleEvent (contracts/SafetyCircleEvent.schema.json) ─────

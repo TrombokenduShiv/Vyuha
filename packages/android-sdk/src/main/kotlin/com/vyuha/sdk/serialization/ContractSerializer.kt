@@ -29,7 +29,7 @@ object ContractSerializer {
      * - Pretty printing disabled for compact output
      * - Nulls serialized for completeness
      */
-    private val gson: Gson = GsonBuilder()
+    @PublishedApi internal val gson: Gson = GsonBuilder()
         .setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
         .serializeNulls()
         .create()

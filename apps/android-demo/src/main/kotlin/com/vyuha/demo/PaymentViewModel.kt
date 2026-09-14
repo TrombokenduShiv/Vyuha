@@ -70,7 +70,7 @@ class PaymentViewModel : ViewModel() {
             // 3. Evaluate
             val decision = session.evaluate()
 
-            if (decision.action == "A0_PASS") {
+            if (decision.actionId == ActionId.A0_PASS) {
                 _uiState.value = PaymentUiState.Passed(decision)
                 session.complete(FinalStatus.PAYMENT_COMPLETED)
             } else {
@@ -120,17 +120,11 @@ class PaymentViewModel : ViewModel() {
                 return@launch
             }
 
-            // Simulate: user ended the call and stopped screen share
-            session.updateContext(
-                communicationActive = false,
-                captureRisk = false,
-                overlayRisk = false
-            )
-
-            // Re-evaluate via recordResponse
+            // A button response is not evidence that the call/capture condition ended.
+            // Re-evaluate with the last observed context.
             val newDecision = session.recordResponse(response)
 
-            if (newDecision.action == "A0_PASS") {
+            if (newDecision.actionId == ActionId.A0_PASS) {
                 session.complete(FinalStatus.PAYMENT_COMPLETED)
                 _uiState.value = PaymentUiState.Completed(FinalStatus.PAYMENT_COMPLETED)
             } else {

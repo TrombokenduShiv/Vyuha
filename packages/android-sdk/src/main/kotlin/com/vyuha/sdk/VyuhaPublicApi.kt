@@ -34,7 +34,10 @@ data class TransactionInput(
     /** Display name of the payee (optional, for UI only). */
     val payeeName: String? = null,
     /** Payment channel. */
-    val channel: String = "UPI"
+    val channel: String = "UPI",
+    /** Supplied by institution history, never inferred from a hash. */
+    val beneficiaryNovelty: Double = 1.0,
+    val onlinePurchase: Boolean = false
 )
 
 /**

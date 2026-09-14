@@ -1,49 +1,183 @@
 {
-    "benchmarks": [
-        {
-            "component": "MoE (Triage+Experts)",
-            "p50": 0.22255000658333302,
-            "p95": 0.4904650093521922,
-            "p99": 0.796146008069627,
-            "budget_ms": 27.0,
-            "passed": "True"
-        },
-        {
-            "component": "BeliefState",
-            "p50": 0.000800006091594696,
-            "p95": 0.000900006853044033,
-            "budget_ms": 1.5,
-            "passed": "True"
-        },
-        {
-            "component": "ConformalPredictor",
-            "p50": 0.000200001522898674,
-            "p95": 0.000300002284348011,
-            "budget_ms": 0.5,
-            "passed": "True"
-        },
-        {
-            "component": "HGT (full graph)",
-            "p50": 598.696100001689,
-            "p95": 639.7340400348185,
-            "budget_ms": 50.0,
-            "passed": "False",
-            "per_account_us": 21.324468001160614
-        },
-        {
-            "component": "Full Local Pipeline",
-            "p50": 0.27719998615793884,
-            "p95": 1.0695699922507624,
-            "p99": 1.780397989205084,
-            "budget_ms": 50.0,
-            "passed": "True"
-        }
-    ],
-    "model_sizes": {
-        "edge_risk_moe.pt": 47643,
-        "hgt_server.pt": 782749,
-        "moe_params": 954,
-        "hgt_params": 183178
+  "environment": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.14",
+    "torch": "2.14.0+cpu",
+    "cpu": "Intel64 Family 6 Model 186 Stepping 2, GenuineIntel",
+    "torch_threads": 2
+  },
+  "moe_sha256": "b73f6ff16f412c13c752aea097c6be996f552adaa5dd18c71998e261189cdaee",
+  "graph_sha256": "62cd25f06cff0789e993637d5585b6588188e297570ebc90b77ba8798295b845",
+  "cold_moe_load_ms": 9.153799968771636,
+  "cold_graph_load_and_score_ms": 4096.390799968503,
+  "graph": {
+    "loaded": true,
+    "mode": "hgt-snapshot",
+    "num_accounts": 30000,
+    "model_version": "hgt-v2-62cd25f06cff0789",
+    "snapshot_age_s": 5.000890731811523,
+    "inference_ms": 1395.0170999742113,
+    "data_kind": "synthetic"
+  },
+  "results": [
+    {
+      "component": "feature_packing_python",
+      "status": "PASS",
+      "budget_p95_ms": 2,
+      "p50_ms": 0.00645,
+      "p95_ms": 0.009,
+      "p99_ms": 0.013831999999999971,
+      "max_ms": 0.1122,
+      "samples": 500,
+      "warmup": 30
     },
-    "overall_passed": false
+    {
+      "component": "triage_routing_python",
+      "status": "PASS",
+      "budget_p95_ms": 5,
+      "p50_ms": 0.0591,
+      "p95_ms": 0.10434499999999951,
+      "p99_ms": 0.3888239999999998,
+      "max_ms": 1.0907,
+      "samples": 500,
+      "warmup": 30
+    },
+    {
+      "component": "moe_including_packing_python",
+      "status": "PASS",
+      "budget_p95_ms": 20,
+      "p50_ms": 0.3539,
+      "p95_ms": 1.1534949999999986,
+      "p99_ms": 1.795127,
+      "max_ms": 2.6147,
+      "samples": 500,
+      "warmup": 30
+    },
+    {
+      "component": "belief_conformal_python",
+      "status": "PASS",
+      "budget_p95_ms": 2,
+      "p50_ms": 0.0014,
+      "p95_ms": 0.002,
+      "p99_ms": 0.0022,
+      "max_ms": 0.0219,
+      "samples": 500,
+      "warmup": 30
+    },
+    {
+      "component": "policy_python",
+      "status": "PASS",
+      "budget_p95_ms": 2,
+      "p50_ms": 0.0019,
+      "p95_ms": 0.0031,
+      "p99_ms": 0.0032009999999999994,
+      "max_ms": 0.0036,
+      "samples": 500,
+      "warmup": 30
+    },
+    {
+      "component": "local_path_python",
+      "status": "PASS",
+      "budget_p95_ms": 50,
+      "p50_ms": 0.3627,
+      "p95_ms": 1.0929499999999985,
+      "p99_ms": 1.6668349999999976,
+      "max_ms": 2.5219,
+      "samples": 500,
+      "warmup": 30
+    },
+    {
+      "component": "local_path_python_median",
+      "budget_median_ms": 30,
+      "p50_ms": 0.3627,
+      "status": "PASS"
+    },
+    {
+      "component": "graph_snapshot_lookup",
+      "status": "PASS",
+      "budget_p95_ms": null,
+      "p50_ms": 0.0047,
+      "p95_ms": 0.0092,
+      "p99_ms": 0.01992199999999989,
+      "max_ms": 0.1074,
+      "samples": 500,
+      "warmup": 30
+    },
+    {
+      "component": "graph_lookup_and_sign",
+      "status": "PASS",
+      "budget_p95_ms": 120,
+      "p50_ms": 0.7073,
+      "p95_ms": 1.2794849999999987,
+      "p99_ms": 1.751470999999999,
+      "max_ms": 2.153,
+      "samples": 500,
+      "warmup": 30
+    },
+    {
+      "component": "graph_api_in_process",
+      "status": "PASS",
+      "budget_p95_ms": 120,
+      "p50_ms": 2.6957,
+      "p95_ms": 3.7067899999999985,
+      "p99_ms": 4.579126,
+      "max_ms": 4.8116,
+      "samples": 500,
+      "warmup": 30
+    },
+    {
+      "component": "graph_api_http",
+      "status": "PASS",
+      "budget_p95_ms": 120,
+      "p50_ms": 4.2837499999999995,
+      "p95_ms": 9.348384999999995,
+      "p99_ms": 12.337525999999999,
+      "max_ms": 14.7049,
+      "samples": 500,
+      "warmup": 30
+    },
+    {
+      "component": "android_context_extraction",
+      "status": "UNMEASURED",
+      "budget_p95_ms": 5,
+      "reason": "Requires physical target Android device measurements"
+    },
+    {
+      "component": "android_feature_packing",
+      "status": "UNMEASURED",
+      "budget_p95_ms": 2,
+      "reason": "Requires physical target Android device measurements"
+    },
+    {
+      "component": "android_triage",
+      "status": "UNMEASURED",
+      "budget_p95_ms": 5,
+      "reason": "Requires physical target Android device measurements"
+    },
+    {
+      "component": "android_moe",
+      "status": "UNMEASURED",
+      "budget_p95_ms": 20,
+      "reason": "Requires physical target Android device measurements"
+    },
+    {
+      "component": "android_belief",
+      "status": "UNMEASURED",
+      "budget_p95_ms": 2,
+      "reason": "Requires physical target Android device measurements"
+    },
+    {
+      "component": "android_policy",
+      "status": "UNMEASURED",
+      "budget_p95_ms": 2,
+      "reason": "Requires physical target Android device measurements"
+    },
+    {
+      "component": "android_total_local",
+      "status": "UNMEASURED",
+      "budget_p95_ms": 50,
+      "reason": "Requires physical target Android device measurements"
+    }
+  ],
+  "all_declared_budgets_validated": false
 }

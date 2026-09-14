@@ -29,6 +29,9 @@ class VyuhaSession internal constructor(
     /** The raw amount (from TransactionInput). */
     val amountInr: Double get() = transactionInput.amountInr
 
+    /** Call early from the host's coroutine; never blocks local evaluation. */
+    suspend fun prefetchReceiverRisk() = internal.prefetchGraphRisk(hashVpa(transactionInput.payeeVpa))
+
     /**
      * Update real-time device/communication signals.
      * Call this whenever signal state changes (e.g., user starts/ends a call).
@@ -97,7 +100,12 @@ class VyuhaSession internal constructor(
             )
         }
 
-        val (title, message) = getInterventionText(interventionType)
+        val (title, message) = when (decision.templateId) {
+            "COUNTERPARTY_WARNING" -> "Check this recipient" to "This recipient shows elevated network risk. Verify the seller independently before paying. Your bank may require an extra check."
+            "MERCHANT_VERIFICATION" -> "New online seller" to "There is not enough receiver history to assess this seller. Have you independently verified the seller outside the account that sent this request?"
+            "RECEIVER_CHECK" -> "Check the receiver" to "This is a new recipient and receiver history is unavailable. Confirm the payment details independently."
+            else -> getInterventionText(interventionType)
+        }
 
         return RiskVerdict(
             shouldProceed = false,
@@ -131,8 +139,8 @@ class VyuhaSession internal constructor(
             "This transaction is highly unusual. We require verification from a trusted contact before proceeding."
         )
         InterventionType.HARD_BLOCK -> Pair(
-            "Transaction Blocked",
-            "This transaction has been blocked due to extreme risk indicators. Please contact your bank if you believe this is an error."
+            "Bank verification required",
+            "Your bank needs an additional check before authorizing this payment. Contact your bank through its official app or number."
         )
     }
 

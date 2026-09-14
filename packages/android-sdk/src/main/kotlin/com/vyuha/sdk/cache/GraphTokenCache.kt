@@ -21,7 +21,7 @@ class GraphTokenCache(
     /** Maximum number of cached tokens. */
     private val maxSize: Int = 50,
     /** Grace period (ms) after token expiry to still return a degraded result. */
-    private val gracePeriodMs: Long = 300_000L  // 5 minutes
+    private val gracePeriodMs: Long = 0L
 ) {
     private val cache = ConcurrentHashMap<String, CachedEntry>()
     private val accessOrder = ConcurrentLinkedDeque<String>()
@@ -38,6 +38,8 @@ class GraphTokenCache(
      * Put a token into the cache.
      */
     fun put(vpaHash: String, token: GraphRiskToken) {
+        require(maxSize > 0)
+        require(token.vpaHash == vpaHash)
         // Evict if at capacity
         while (cache.size >= maxSize) {
             val oldest = accessOrder.pollFirst() ?: break
@@ -70,12 +72,6 @@ class GraphTokenCache(
                 CacheResult.Hit(entry.token)
             }
             // Token expired but within grace period → return with reduced confidence
-            now < tokenExpiryMs + gracePeriodMs -> {
-                val degradedToken = entry.token.copy(
-                    confidence = entry.token.confidence * 0.5  // Halve confidence for stale tokens
-                )
-                CacheResult.StaleHit(degradedToken)
-            }
             // Fully expired
             else -> {
                 cache.remove(vpaHash)

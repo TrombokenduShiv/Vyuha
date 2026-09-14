@@ -46,6 +46,8 @@ class ConformalPredictor:
             alpha: Miscoverage rate. alpha=0.10 -> 90% coverage guarantee.
         """
         self.alpha = alpha
+        if not 0 < alpha < 1:
+            raise ValueError("alpha must be between zero and one")
         self.q_hat_safe = None
         self.q_hat_risk = None
         self.calibrated = False
@@ -77,15 +79,14 @@ class ConformalPredictor:
         level = np.ceil((n + 1) * (1 - self.alpha)) / n
         level = min(level, 1.0)
 
-        if len(safe_scores) > 0:
-            self.q_hat_safe = np.quantile(safe_scores, level)
-        else:
-            self.q_hat_safe = 1.0
-
-        if len(risk_scores) > 0:
-            self.q_hat_risk = np.quantile(risk_scores, level)
-        else:
-            self.q_hat_risk = 1.0
+        if not np.isfinite(cal_predictions).all() or not np.isin(cal_labels, [0, 1]).all() or np.any((cal_predictions < 0) | (cal_predictions > 1)):
+            raise ValueError("Invalid calibration values")
+        def class_quantile(scores):
+            # Mondrian split conformal: finite-sample rank uses THIS class size.
+            rank = int(np.ceil((len(scores) + 1) * (1 - self.alpha)))
+            return 1.0 if rank > len(scores) else float(np.sort(scores)[rank - 1])
+        self.q_hat_safe = class_quantile(safe_scores)
+        self.q_hat_risk = class_quantile(risk_scores)
 
         self._cal_scores = {
             "safe_scores": safe_scores,
@@ -111,7 +112,7 @@ class ConformalPredictor:
         Returns:
             List of UncertaintyLabel values in the prediction set.
         """
-        if not self.calibrated:
+        if not self.calibrated or not np.isfinite(p_coercion) or not 0 <= p_coercion <= 1:
             # Uncalibrated fallback: return ABSTAIN to be safe
             return [UncertaintyLabel.SAFE, UncertaintyLabel.RISK, UncertaintyLabel.ABSTAIN]
 

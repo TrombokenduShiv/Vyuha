@@ -1,13 +1,13 @@
 {
-    "model": "EdgeRiskMoE",
-    "version": "v0.1",
-    "format": "ONNX",
-    "input_shape": [
-        1,
-        6
-    ],
-    "output": "risk_logits (float), routing_weights, confidence",
-    "parameters": 954,
-    "target_device": "Android (ExecuTorch / ONNX Runtime Mobile)",
-    "latency_target_ms": 5
+  "version": "2.1",
+  "data_kind": "synthetic",
+  "objective": "agency_only",
+  "parameters": 954,
+  "checkpoint_sha256": "b73f6ff16f412c13c752aea097c6be996f552adaa5dd18c71998e261189cdaee",
+  "onnx_sha256": "297e9c892434e8900c6c28359720392576b9fee3d0d163715140122503b0c145",
+  "export_parity_max_logit_error": 1.430511474609375e-06,
+  "parity_cases": 291,
+  "onnx_routing": "dense evaluation, top-2 combination",
+  "android_routing": "top-2 sparse",
+  "device_latency": "requires physical Android measurement"
 }

@@ -1,13 +1,29 @@
 {
-  "": "http://json-schema.org/draft-07/schema#",
-  "title": "GraphRiskToken",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GraphRiskTokenV2",
   "type": "object",
+  "additionalProperties": false,
   "properties": {
+    "schema_version": {
+      "const": 2
+    },
     "vpa_hash": {
-      "type": "string"
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "session_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "audience": {
+      "type": "string",
+      "minLength": 1
     },
     "risk_score": {
-      "type": "number",
+      "type": [
+        "number",
+        "null"
+      ],
       "minimum": 0,
       "maximum": 1
     },
@@ -16,19 +32,51 @@
       "minimum": 0,
       "maximum": 1
     },
+    "risk_class": {
+      "enum": [
+        "LOW",
+        "ELEVATED",
+        "HIGH",
+        "UNKNOWN"
+      ]
+    },
     "reason_codes": {
       "type": "array",
+      "maxItems": 10,
       "items": {
-        "type": "string"
+        "type": "string",
+        "maxLength": 80
       }
     },
     "issued_at": {
-      "type": "integer"
+      "type": "integer",
+      "minimum": 0
     },
     "expires_at": {
-      "type": "integer"
+      "type": "integer",
+      "minimum": 0
     },
     "model_version": {
+      "type": "string"
+    },
+    "graph_as_of": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "data_kind": {
+      "enum": [
+        "synthetic",
+        "institutional",
+        "unknown"
+      ]
+    },
+    "key_id": {
+      "type": "string"
+    },
+    "algorithm": {
+      "const": "RS256"
+    },
+    "signed_payload": {
       "type": "string"
     },
     "signature": {
@@ -36,12 +84,47 @@
     }
   },
   "required": [
+    "schema_version",
     "vpa_hash",
+    "session_id",
+    "audience",
     "risk_score",
     "confidence",
+    "risk_class",
     "reason_codes",
     "issued_at",
     "expires_at",
+    "model_version",
+    "graph_as_of",
+    "data_kind",
+    "key_id",
+    "algorithm",
+    "signed_payload",
     "signature"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "risk_class": {
+            "const": "UNKNOWN"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "risk_score": {
+            "type": "null"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "risk_score": {
+            "type": "number"
+          }
+        }
+      }
+    }
   ]
 }

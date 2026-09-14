@@ -39,13 +39,17 @@ data class VyuhaConfig(
     /** Enable detailed logging for debugging/hackathon. */
     val debugLogging: Boolean = false,
     /** HMAC-SHA256 shared secret for risk-token verification. */
-    val graphSigningSecret: String = "vyuha-demo-secret-do-not-use-in-prod"
+    val graphSigningSecret: String? = null,
+    val graphPublicKeys: Map<String, String> = emptyMap(),
+    val graphAudience: String = "vyuha-demo",
+    val allowSyntheticEvidence: Boolean = false
 )
 
 class Vyuha private constructor(
     internal val config: VyuhaConfig
 ) {
-    private val tokenVerifier = TokenVerifier(config.graphSigningSecret)
+    private val tokenVerifier = TokenVerifier(trustedKeys = config.graphPublicKeys,
+        audience = config.graphAudience, allowSynthetic = config.allowSyntheticEvidence)
     internal val graphClient = GraphRiskClient(config.graphApiUrl, tokenVerifier)
 
     /**
@@ -95,12 +99,13 @@ class Vyuha private constructor(
             vpaHash: String,
             amountBucket: AmountBucket,
             beneficiaryNovelty: Double,
-            channel: String = "UPI"
+            channel: String = "UPI",
+            onlinePurchase: Boolean = false
         ): Session {
             val vyuha = getInstance()
 
             // Fetch graph risk token synchronously (mock for hackathon)
-            val graphToken = vyuha.graphClient.mockToken(vpaHash)
+            val graphToken: GraphRiskToken? = null
 
             return Session(
                 graphClient = vyuha.graphClient,
@@ -109,7 +114,8 @@ class Vyuha private constructor(
                 initialAmountBucket = amountBucket,
                 initialBeneficiaryNovelty = beneficiaryNovelty,
                 initialChannel = channel,
-                initialGraphToken = graphToken
+                initialGraphToken = graphToken,
+                initialOnlinePurchase = onlinePurchase
             )
         }
 
@@ -137,17 +143,25 @@ class Vyuha private constructor(
         fun beginPayment(transaction: TransactionInput): VyuhaSession {
             val vpaHash = VyuhaSession.hashVpa(transaction.payeeVpa)
             val amountBucket = VyuhaSession.bucketizeAmount(transaction.amountInr)
-            val novelty = VyuhaSession.estimateNovelty(vpaHash)
+            require(transaction.amountInr.isFinite() && transaction.amountInr > 0)
+            require(transaction.payeeVpa.isNotBlank())
+            val novelty = transaction.beneficiaryNovelty
 
             val internalSession = beginPaymentInternal(
                 vpaHash = vpaHash,
                 amountBucket = amountBucket,
                 beneficiaryNovelty = novelty,
-                channel = transaction.channel
+                channel = transaction.channel,
+                onlinePurchase = transaction.onlinePurchase
             )
 
             return VyuhaSession(internalSession, transaction)
         }
+
+        /** Compatibility entry point for the existing host simulator. */
+        fun beginPayment(vpaHash: String, amountBucket: AmountBucket,
+                         beneficiaryNovelty: Double, channel: String = "UPI"): Session =
+            beginPaymentInternal(vpaHash, amountBucket, beneficiaryNovelty, channel)
 
         /**
          * Reset the singleton (for testing only).

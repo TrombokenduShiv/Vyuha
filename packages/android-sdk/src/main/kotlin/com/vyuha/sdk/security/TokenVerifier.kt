@@ -18,7 +18,11 @@ import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
 class TokenVerifier(
-    private val signingSecret: String = "vyuha-demo-secret-do-not-use-in-prod"
+    private val signingSecret: String? = null,
+    private val trustedKeys: Map<String, String> = emptyMap(),
+    private val audience: String = "vyuha-demo",
+    private val allowSynthetic: Boolean = false,
+    private val nowEpochSeconds: () -> Long = { System.currentTimeMillis() / 1000 }
 ) {
 
     /**
@@ -45,7 +49,9 @@ class TokenVerifier(
      *
      * @return [VerificationResult] indicating the outcome.
      */
-    fun verify(token: GraphRiskToken): VerificationResult {
+    fun verify(token: GraphRiskToken, expectedVpa: String? = null, expectedSession: String? = null): VerificationResult {
+        if (token.schemaVersion == 2) return verifyV2(token, expectedVpa, expectedSession)
+        if (signingSecret == null) return VerificationResult.INVALID_SIGNATURE
         // 1. Basic sanity checks
         if (token.vpaHash.isBlank() || token.signature.isBlank()) {
             return VerificationResult.MALFORMED
@@ -61,7 +67,7 @@ class TokenVerifier(
 
         // 3. Check expiry
         val nowSec = System.currentTimeMillis() / 1000
-        if (nowSec > token.expiresAt) {
+        if (nowSec >= token.expiresAt) {
             return VerificationResult.EXPIRED
         }
 
@@ -99,7 +105,8 @@ class TokenVerifier(
      * Format a Double to match Python's default JSON serialization.
      * Python outputs: 0.05, 0.95, 0.92, etc.
      */
-    private fun formatDouble(value: Double): String {
+    private fun formatDouble(value: Double?): String {
+        if (value == null) return "null"
         // Remove trailing zeros but keep at least one decimal
         val formatted = value.toBigDecimal().stripTrailingZeros().toPlainString()
         return if ("." in formatted) formatted else "$formatted.0"
@@ -110,9 +117,37 @@ class TokenVerifier(
      */
     private fun computeHmac(data: String): String {
         val mac = Mac.getInstance("HmacSHA256")
-        val secretKey = SecretKeySpec(signingSecret.toByteArray(), "HmacSHA256")
+        val secretKey = SecretKeySpec(requireNotNull(signingSecret).toByteArray(), "HmacSHA256")
         mac.init(secretKey)
         val hmacBytes = mac.doFinal(data.toByteArray())
         return hmacBytes.joinToString("") { "%02x".format(it) }
     }
+
+    private fun verifyV2(token: GraphRiskToken, expectedVpa: String?, expectedSession: String?): VerificationResult = try {
+        require(expectedVpa != null && expectedSession != null)
+        require(token.algorithm == "RS256" && token.audience == audience)
+        require(token.vpaHash == expectedVpa && token.sessionId == expectedSession)
+        require(allowSynthetic || token.dataKind != "synthetic")
+        require(token.riskScore == null || (token.riskScore.isFinite() && token.riskScore in 0.0..1.0))
+        require(token.confidence.isFinite() && token.confidence in 0.0..1.0)
+        require((token.riskClass == "UNKNOWN") == (token.riskScore == null))
+        val der = java.util.Base64.getDecoder().decode(requireNotNull(trustedKeys[token.keyId]))
+        val key = java.security.KeyFactory.getInstance("RSA").generatePublic(java.security.spec.X509EncodedKeySpec(der))
+        val bytes = java.util.Base64.getDecoder().decode(token.signedPayload)
+        val verifier = java.security.Signature.getInstance("SHA256withRSA")
+        verifier.initVerify(key)
+        verifier.update(bytes)
+        if (!verifier.verify(java.util.Base64.getDecoder().decode(token.signature))) {
+            VerificationResult.INVALID_SIGNATURE
+        } else {
+            val gson = com.google.gson.GsonBuilder().serializeNulls().create()
+            val signed = com.google.gson.JsonParser.parseString(String(bytes, Charsets.UTF_8)).asJsonObject
+            val envelope = gson.toJsonTree(token).asJsonObject
+            listOf("algorithm", "signature", "signed_payload").forEach { envelope.remove(it) }
+            require(signed == envelope) { "Unsigned fields were changed" }
+            val now = nowEpochSeconds()
+            require(token.issuedAt <= now + 30 && token.expiresAt > token.issuedAt && token.expiresAt - token.issuedAt <= 300)
+            if (now >= token.expiresAt) VerificationResult.EXPIRED else VerificationResult.VALID
+        }
+    } catch (_: Exception) { VerificationResult.MALFORMED }
 }
