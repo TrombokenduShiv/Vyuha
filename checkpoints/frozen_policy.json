@@ -1,0 +1,56 @@
+{
+    "version": "v0.1",
+    "trained_on": "1000 scenarios",
+    "alpha": 0.1,
+    "belief_buckets": [
+        [
+            0.0,
+            0.15
+        ],
+        [
+            0.15,
+            0.3
+        ],
+        [
+            0.3,
+            0.5
+        ],
+        [
+            0.5,
+            0.65
+        ],
+        [
+            0.65,
+            0.85
+        ],
+        [
+            0.85,
+            1.01
+        ]
+    ],
+    "uncertainty_categories": [
+        "CERTAIN_SAFE",
+        "CERTAIN_RISK",
+        "UNCERTAIN"
+    ],
+    "policy": {
+        "0.00-0.15_CERTAIN_SAFE": "A0_PASS",
+        "0.00-0.15_CERTAIN_RISK": "A0_PASS",
+        "0.00-0.15_UNCERTAIN": "A0_PASS",
+        "0.15-0.30_CERTAIN_SAFE": "A0_PASS",
+        "0.15-0.30_CERTAIN_RISK": "A0_PASS",
+        "0.15-0.30_UNCERTAIN": "A0_PASS",
+        "0.30-0.50_CERTAIN_SAFE": "A0_PASS",
+        "0.30-0.50_CERTAIN_RISK": "A0_PASS",
+        "0.30-0.50_UNCERTAIN": "A1_MICRO_PROMPT",
+        "0.50-0.65_CERTAIN_SAFE": "A0_PASS",
+        "0.50-0.65_CERTAIN_RISK": "A0_PASS",
+        "0.50-0.65_UNCERTAIN": "A6_STEP_UP_REQUIRED",
+        "0.65-0.85_CERTAIN_SAFE": "A0_PASS",
+        "0.65-0.85_CERTAIN_RISK": "A0_PASS",
+        "0.65-0.85_UNCERTAIN": "A6_STEP_UP_REQUIRED",
+        "0.85-1.01_CERTAIN_SAFE": "A0_PASS",
+        "0.85-1.01_CERTAIN_RISK": "A0_PASS",
+        "0.85-1.01_UNCERTAIN": "A0_PASS"
+    }
+}

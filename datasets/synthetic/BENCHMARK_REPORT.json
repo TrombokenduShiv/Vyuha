@@ -1,0 +1,49 @@
+{
+    "benchmarks": [
+        {
+            "component": "MoE (Triage+Experts)",
+            "p50": 0.22255000658333302,
+            "p95": 0.4904650093521922,
+            "p99": 0.796146008069627,
+            "budget_ms": 27.0,
+            "passed": "True"
+        },
+        {
+            "component": "BeliefState",
+            "p50": 0.000800006091594696,
+            "p95": 0.000900006853044033,
+            "budget_ms": 1.5,
+            "passed": "True"
+        },
+        {
+            "component": "ConformalPredictor",
+            "p50": 0.000200001522898674,
+            "p95": 0.000300002284348011,
+            "budget_ms": 0.5,
+            "passed": "True"
+        },
+        {
+            "component": "HGT (full graph)",
+            "p50": 598.696100001689,
+            "p95": 639.7340400348185,
+            "budget_ms": 50.0,
+            "passed": "False",
+            "per_account_us": 21.324468001160614
+        },
+        {
+            "component": "Full Local Pipeline",
+            "p50": 0.27719998615793884,
+            "p95": 1.0695699922507624,
+            "p99": 1.780397989205084,
+            "budget_ms": 50.0,
+            "passed": "True"
+        }
+    ],
+    "model_sizes": {
+        "edge_risk_moe.pt": 47643,
+        "hgt_server.pt": 782749,
+        "moe_params": 954,
+        "hgt_params": 183178
+    },
+    "overall_passed": false
+}

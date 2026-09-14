@@ -1,16 +1,28 @@
 """
-Vyuha 2.0 — Graph Risk API Simulator
-=====================================
-Simulates the institutional ST-GNN backend.
-Returns signed GraphRiskTokens per the frozen contract schema.
+Vyuha 2.0 -- Graph Risk API (HGT-Backed)
+==========================================
+Serves GraphRiskTokens backed by the trained HGT model.
 
-This is a DETERMINISTIC MOCK for Vertical Slices 0 & 1.
-Known VPAs return low risk; unknown VPAs return high risk.
+Falls back to deterministic mock if:
+    - No trained HGT checkpoint exists
+    - Model loading fails
+    - Graph data not available
+
+Endpoints:
+    POST /v1/graph-risk   -> GraphRiskToken (signed)
+    GET  /v1/graph-risk/stats -> Model & inference stats
+    POST /v1/telemetry    -> Async audit payload (placeholder)
+    GET  /v1/bundles      -> ML model bundle metadata
+    GET  /health          -> Service health check
+
+Architecture ref: ARCHITECTURE_FREEZE_V1 sec11, ADR-003 secGraph Output.
 """
 
 import hashlib
 import hmac
 import json
+import os
+import sys
 import time
 from enum import Enum
 from typing import List, Optional
@@ -18,11 +30,15 @@ from typing import List, Optional
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
+# Add project root to path for ML imports
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+sys.path.insert(0, PROJECT_ROOT)
+
 # ── App ──────────────────────────────────────────────────────────────
 app = FastAPI(
-    title="Vyuha Graph Risk API (Simulator)",
-    version="0.1.0-slice",
-    description="Deterministic mock for Vertical Slices 0 & 1",
+    title="Vyuha Graph Risk API",
+    version="0.2.0",
+    description="HGT-backed graph risk scoring service for the Vyuha Edge SDK",
 )
 
 # ── Shared secret for HMAC signing (demo only) ──────────────────────
@@ -41,6 +57,35 @@ HIGH_RISK_VPAS = {
     hashlib.sha256(b"unknown_vpa@upi").hexdigest(): ["HIGH_FAN_IN", "NEW_VPA_BURST"],
 }
 
+# ── ML Engine (loaded at startup) ───────────────────────────────────
+_inference_engine = None
+_engine_mode = "deterministic-mock"
+
+
+def _load_ml_engine():
+    """Attempt to load the HGT inference engine."""
+    global _inference_engine, _engine_mode
+    try:
+        from ml.graph.inference.serve import GraphInferenceEngine
+        engine = GraphInferenceEngine()
+        engine.load()
+        if engine.loaded:
+            _inference_engine = engine
+            _engine_mode = "hgt-inference"
+            print("[GraphRiskAPI] HGT inference engine loaded successfully")
+        else:
+            _engine_mode = "deterministic-mock"
+            print("[GraphRiskAPI] HGT not available, using deterministic mock")
+    except Exception as e:
+        _engine_mode = "deterministic-mock"
+        print(f"[GraphRiskAPI] ML engine load failed ({e}), using deterministic mock")
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Load ML model on startup."""
+    _load_ml_engine()
+
 
 # ── Request / Response models (match contracts/) ────────────────────
 class GraphRiskRequest(BaseModel):
@@ -56,8 +101,26 @@ class GraphRiskToken(BaseModel):
     reason_codes: List[str]
     issued_at: int
     expires_at: int
-    model_version: str = "hgt-v0.1-mock"
+    model_version: str
     signature: str
+
+
+class TelemetryPayload(BaseModel):
+    """Async audit payload from the SDK."""
+    session_id: str
+    event_type: str
+    payload: dict = Field(default_factory=dict)
+    timestamp_ms: int = Field(default=0)
+
+
+class BundleInfo(BaseModel):
+    """ML model bundle metadata."""
+    bundle_id: str
+    model_type: str
+    version: str
+    size_bytes: int
+    checksum: str
+    download_url: str
 
 
 def _sign_token(payload: dict) -> str:
@@ -66,31 +129,25 @@ def _sign_token(payload: dict) -> str:
     return hmac.new(SIGNING_SECRET, canonical.encode(), hashlib.sha256).hexdigest()
 
 
-@app.post("/v1/graph-risk", response_model=GraphRiskToken)
-async def get_graph_risk(req: GraphRiskRequest):
-    """
-    Deterministic routing:
-    - If vpa_hash is in KNOWN_SAFE_VPAS  → low risk (0.05)
-    - If vpa_hash is in HIGH_RISK_VPAS   → high risk (0.92)
-    - Otherwise                          → medium risk (0.45)
-    """
+def _deterministic_risk(vpa_hash: str) -> dict:
+    """Deterministic mock risk scoring (fallback)."""
     now = int(time.time())
 
-    if req.vpa_hash in KNOWN_SAFE_VPAS:
+    if vpa_hash in KNOWN_SAFE_VPAS:
         risk_score = 0.05
         confidence = 0.95
         reason_codes = []
-    elif req.vpa_hash in HIGH_RISK_VPAS:
+    elif vpa_hash in HIGH_RISK_VPAS:
         risk_score = 0.92
         confidence = 0.88
-        reason_codes = HIGH_RISK_VPAS[req.vpa_hash]
+        reason_codes = HIGH_RISK_VPAS[vpa_hash]
     else:
         risk_score = 0.45
         confidence = 0.60
         reason_codes = ["UNKNOWN_VPA"]
 
     payload = {
-        "vpa_hash": req.vpa_hash,
+        "vpa_hash": vpa_hash,
         "risk_score": risk_score,
         "confidence": confidence,
         "reason_codes": reason_codes,
@@ -98,14 +155,101 @@ async def get_graph_risk(req: GraphRiskRequest):
         "expires_at": now + 3600,
         "model_version": "hgt-v0.1-mock",
     }
-    signature = _sign_token(payload)
+    payload["signature"] = _sign_token(payload)
+    return payload
 
-    return GraphRiskToken(**payload, signature=signature)
+
+# ── Endpoints ────────────────────────────────────────────────────────
+
+@app.post("/v1/graph-risk", response_model=GraphRiskToken)
+async def get_graph_risk(req: GraphRiskRequest):
+    """
+    Score a beneficiary VPA hash using the HGT model.
+
+    If the HGT model is loaded, runs real graph inference.
+    Otherwise, falls back to deterministic mock routing.
+    """
+    if _inference_engine and _inference_engine.loaded:
+        # Use trained HGT model
+        token = _inference_engine.query_risk(vpa_hash=req.vpa_hash)
+        return GraphRiskToken(**token)
+    else:
+        # Deterministic fallback
+        token = _deterministic_risk(req.vpa_hash)
+        return GraphRiskToken(**token)
+
+
+@app.get("/v1/graph-risk/stats")
+async def get_stats():
+    """Return model and inference engine statistics."""
+    if _inference_engine and _inference_engine.loaded:
+        return {
+            "mode": _engine_mode,
+            "engine_stats": _inference_engine.get_stats(),
+        }
+    return {
+        "mode": _engine_mode,
+        "engine_stats": {"loaded": False},
+    }
+
+
+@app.post("/v1/telemetry")
+async def ingest_telemetry(payload: TelemetryPayload):
+    """
+    Receive async telemetry/audit data from the SDK.
+    In production: persists to audit store. Here: logs and acks.
+    """
+    print(f"[Telemetry] session={payload.session_id} "
+          f"event={payload.event_type} ts={payload.timestamp_ms}")
+    return {"status": "accepted", "session_id": payload.session_id}
+
+
+@app.get("/v1/bundles")
+async def list_bundles():
+    """
+    List available ML model bundles for OTA download.
+    In production: signed bundles are downloaded by the SDK.
+    """
+    exports_dir = os.path.join(PROJECT_ROOT, "exports")
+    bundles = []
+
+    # Check for MoE export
+    moe_path = os.path.join(exports_dir, "edge_risk_moe.pt")
+    if os.path.exists(moe_path):
+        size = os.path.getsize(moe_path)
+        bundles.append(BundleInfo(
+            bundle_id="edge-risk-moe-v0.1",
+            model_type="EdgeRiskMoE",
+            version="v0.1",
+            size_bytes=size,
+            checksum=hashlib.sha256(open(moe_path, "rb").read()).hexdigest()[:16],
+            download_url="/v1/bundles/edge-risk-moe-v0.1/download"
+        ))
+
+    # Check for HGT export
+    hgt_path = os.path.join(exports_dir, "hgt_server.pt")
+    if os.path.exists(hgt_path):
+        size = os.path.getsize(hgt_path)
+        bundles.append(BundleInfo(
+            bundle_id="hgt-server-v0.1",
+            model_type="HGT",
+            version="v0.1",
+            size_bytes=size,
+            checksum=hashlib.sha256(open(hgt_path, "rb").read()).hexdigest()[:16],
+            download_url="/v1/bundles/hgt-server-v0.1/download"
+        ))
+
+    return {"bundles": bundles, "count": len(bundles)}
 
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "mode": "deterministic-mock"}
+    """Service health check."""
+    return {
+        "status": "ok",
+        "mode": _engine_mode,
+        "model_loaded": _inference_engine.loaded if _inference_engine else False,
+    }
 
 
 if __name__ == "__main__":
