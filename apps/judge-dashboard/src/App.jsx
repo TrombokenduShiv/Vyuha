@@ -1,56 +1,72 @@
-import React, { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { Activity, ArrowRight, ArrowUpRight, Check, ChevronDown, CircleHelp, FlaskConical, LockKeyhole, Monitor, Phone, Shield, ShoppingBag } from 'lucide-react';
 import evaluation from './data/evaluation.json';
+import { actionCopy, formatRisk, reasonCopy, scenarioCopy, riskTone } from './presentation.js';
 import './index.css';
 
-const copy = {
-  PASS: ['No extra check', 'The current evidence does not require additional friction. The bank still authorizes the payment.'],
-  COUNTERPARTY_WARNING: ['Check this recipient', 'This recipient shows elevated network risk. Verify the seller independently before paying. Your bank may require an extra check.'],
-  MERCHANT_VERIFICATION: ['New online seller', 'There is not enough receiver history to assess this seller. Have you independently verified them outside the account that sent this payment request?'],
-  RECEIVER_CHECK: ['Check the receiver', 'Receiver history is unavailable. Confirm the recipient independently before making a first payment.'],
-  ISOLATION_BREAK: ['Take a moment away from the call', 'End the call or screen sharing, then reassess the payment. Vyuha cannot end another app’s call for you.'],
-  REFLECTION: ['Review this payment', 'Some evidence is uncertain or unusual. Verify the payment details without relying on the person who requested it.'],
-};
+function RiskCard({ title, subtitle, value, children, source, icon: Icon }) {
+  const tone = riskTone(value);
+  return <section className={`risk-card ${tone}`}>
+    <div className="card-heading"><span className="icon-tile"><Icon size={19} /></span><span className="score-source">{source}</span></div>
+    <h3>{title}</h3><p className="card-description">{subtitle}</p>
+    <div className="score-line"><strong className={value == null ? 'unknown-score' : ''}>{formatRisk(value)}</strong><span className={`pill ${tone}`}>{value == null ? 'Missing evidence' : value >= .5 ? 'Elevated risk' : 'Low observed risk'}</span></div>
+    <div className={`score-track ${value == null ? 'unknown-track' : ''}`} aria-hidden="true"><span style={{ transform: `scaleX(${value ?? 0})` }} /></div>
+    <div className="card-facts">{children}</div>
+  </section>;
+}
+
+export function ScenarioReview({ item }) {
+  const recommendation = actionCopy[item.template_id] || actionCopy.REFLECTION;
+  return <>
+    <div className="risk-grid">
+      <RiskCard title="Influence risk" subtitle="Could someone be pressuring the payer?" value={item.agency_risk} source="Agency model" icon={Activity}>
+        <div><span><Phone size={15} />Active call</span><b>{item.context.communication_active ? 'Yes' : 'No'}</b></div>
+        <div><span><Monitor size={15} />Screen-capture risk</span><b>{item.context.capture_risk ? 'Detected' : 'Not detected'}</b></div>
+      </RiskCard>
+      <RiskCard title="Recipient risk" subtitle="What does the recipient’s history indicate?" value={item.counterparty_risk} source="Scenario evidence" icon={Shield}>
+        <div><span><ShoppingBag size={15} />Online purchase</span><b>{item.context.online_purchase ? 'User supplied' : 'Not supplied'}</b></div>
+        <div><span><CircleHelp size={15} />Recipient history</span><b>{item.counterparty_risk == null ? 'Unavailable' : 'Available'}</b></div>
+      </RiskCard>
+    </div>
+    <section className={`recommendation ${recommendation.tone}`} aria-labelledby="recommendation-title">
+      <div className="recommendation-icon">{item.template_id === 'PASS' ? <Check size={23} /> : <Shield size={23} />}</div>
+      <div className="recommendation-copy"><span className="section-label">Recommended next step</span><h3 id="recommendation-title">{recommendation.title}</h3><p>{recommendation.message}</p></div>
+      <span className={`pill ${recommendation.tone}`}>{recommendation.label}</span>
+    </section>
+    <div className="context-strip"><LockKeyhole size={15} /><p>Influence and recipient risk are assessed separately. Your bank makes the final payment decision.</p></div>
+    <details className="evidence-details">
+      <summary><span>Evidence &amp; decision details</span><ChevronDown size={17} /></summary>
+      <div className="evidence-body">
+        <dl><div><dt>Why this action?</dt><dd>{item.reason_codes.map(reason => reasonCopy[reason] || reason.replaceAll('_', ' ').toLowerCase()).join(' ')}</dd></div><div><dt>Evidence status</dt><dd>{item.uncertain ? 'Incomplete — verify before relying on it.' : 'No uncertainty flagged in this scenario.'}</dd></div><div><dt>Policy reference</dt><dd className="policy-code">{item.action_id}</dd></div></dl>
+        <p>These are saved results from synthetic scenarios, not a live bank or device connection. Influence scores come from the trained agency model; recipient scores are supplied scenario evidence. Missing history does not mean low risk.</p>
+        <p>Only payment-session features enter the model. Call audio, messages and screen contents are not collected. These results do not establish real-world fraud accuracy.</p>
+      </div>
+    </details>
+  </>;
+}
 
 export default function App() {
   const [selected, setSelected] = useState(1);
   const item = evaluation.scenarios[selected];
-  const [title, message] = copy[item.template_id] || copy.REFLECTION;
-  const percent = value => value == null ? 'Unknown' : `${(value * 100).toFixed(1)}%`;
-  return <main style={{ maxWidth: 1150, margin: 'auto', padding: '2rem', color: 'var(--text-primary)' }}>
-    <header className="header" style={{ marginBottom: '1.5rem' }}>
-      <div><h1>Vyuha · Payment integrity</h1><p>Independent decisions. Safer counterparties.</p></div>
-      <span className="value-label">Engineering evaluation · 2.1</span>
-    </header>
-    <p style={{ padding: '1rem', border: '1px solid var(--panel-border)', borderRadius: 12 }}>
-      Synthetic evaluation replay. Agency scores come from the trained MoE. Receiver scores are supplied scenario evidence.
-      This view is not connected to a bank, a phone, or a live graph service. No performance timings are invented.
-    </p>
-    <nav aria-label="Payment scenarios" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, margin: '1.5rem 0' }}>
-      {evaluation.scenarios.map((scenario, i) => <button key={scenario.case} onClick={() => setSelected(i)}
-        aria-pressed={selected === i} style={{ padding: '.7rem 1rem', borderRadius: 8, cursor: 'pointer',
-          border: '1px solid var(--panel-border)', background: selected === i ? '#c7d2fe' : '#182135',
-          color: selected === i ? '#111827' : '#f8fafc' }}>{scenario.case}</button>)}
-    </nav>
-    <h2 style={{ marginBottom: 20 }}>{item.case}</h2>
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20 }}>
-      <section className="glass-panel"><h2>Agency integrity</h2><p>Could someone be influencing the decision?</p>
-        <p style={{ fontSize: '3rem', margin: '1rem 0' }}>{percent(item.agency_risk)}</p>
-        <p>Call active: {item.context.communication_active ? 'Yes' : 'No'}</p>
-        <p>Capture risk: {item.context.capture_risk ? 'Yes' : 'No'}</p>
-        <p>Only payment-session features enter the model.</p></section>
-      <section className="glass-panel"><h2>Counterparty integrity</h2><p>What does receiver evidence indicate?</p>
-        <p style={{ fontSize: '3rem', margin: '1rem 0' }}>{percent(item.counterparty_risk)}</p>
-        <p>{item.counterparty_risk == null ? 'Missing history is not a safe verdict.' : 'Receiver risk remains separate from agency risk.'}</p>
-        <p>Online purchase context: {item.context.online_purchase ? 'User supplied' : 'Not supplied'}</p>
-        <p>Messages, call audio and screen contents are not collected.</p></section>
-      <section className="glass-panel" aria-live="polite"><h2>{title}</h2><p style={{ lineHeight: 1.7 }}>{message}</p>
-        <p style={{ marginTop: '1.5rem' }}><strong>{item.action_id.replaceAll('_', ' ')}</strong></p>
-        <p>Evidence uncertain: {item.uncertain ? 'Yes' : 'No'}</p>
-        <p>Reason: {item.reason_codes.join(', ')}</p></section>
+  const description = scenarioCopy[item.case];
+  useEffect(() => {
+    if (window.parent !== window) window.parent.postMessage({ type: 'vyuha:dashboard-ready' }, window.location.origin);
+  }, []);
+  return <div className="app-shell">
+    <a className="skip-link" href="#review">Skip to payment review</a>
+    <header className="app-header"><a className="wordmark" href="#review" aria-label="Vyuha payment review"><Shield size={29} strokeWidth={2.2} /><span>VYUHA</span></a><span className="header-divider" /><span className="product-name">Payment review</span><span className="demo-badge"><FlaskConical size={14} />Demo data</span></header>
+    <div className="workspace">
+      <aside className="scenario-sidebar"><div className="sidebar-title"><h2>Scenarios</h2><span>{evaluation.scenarios.length.toString().padStart(2,'0')}</span></div><p className="sidebar-description">Explore a payment situation.</p>
+        <select className="mobile-scenarios" aria-label="Choose a payment scenario" value={selected} onChange={event => setSelected(Number(event.target.value))}>{evaluation.scenarios.map((scenario, index) => <option key={scenario.case} value={index}>{String(index + 1).padStart(2, '0')} · {scenarioCopy[scenario.case].title}</option>)}</select>
+        <nav className="scenario-list" aria-label="Payment scenarios">{evaluation.scenarios.map((scenario, index) => <button type="button" key={scenario.case} onClick={() => setSelected(index)} aria-pressed={selected === index} className={`scenario-button ${selected === index ? 'selected' : ''}`}><span className="scenario-number">{String(index+1).padStart(2,'0')}</span><span><strong>{scenarioCopy[scenario.case].title}</strong><small>{scenarioCopy[scenario.case].category}</small></span><ArrowUpRight size={15} className="scenario-arrow" /></button>)}</nav>
+      </aside>
+      <main id="review" className="review" tabIndex={-1}>
+        <div className="review-breadcrumb">Payment review<ArrowRight size={13} /><span>Scenario {String(selected+1).padStart(2,'0')}</span></div>
+        <div className="review-heading"><div><h1>{description.title}</h1><p>{description.description}</p></div><span className="review-count">{String(selected+1).padStart(2,'0')}<span> / {String(evaluation.scenarios.length).padStart(2,'0')}</span></span></div>
+        <div className="sr-only" role="status" aria-live="polite">{description.title}. {actionCopy[item.template_id]?.title}</div>
+        <div key={item.case} className="review-content"><ScenarioReview item={item} /></div>
+        <footer className="review-footer"><span><span className="quiet-dot" />Scenario replay</span><span>VYUHA · Payment integrity</span></footer>
+      </main>
     </div>
-    <p style={{ marginTop: '2rem', lineHeight: 1.8 }}>
-      The bank owns final payment authorization. An isolation break is reserved for agency risk with an active communication or capture condition.
-      A calm buyer can still need receiver verification. These trained models use synthetic data and do not establish real-world fraud accuracy.
-    </p>
-  </main>;
+  </div>;
 }

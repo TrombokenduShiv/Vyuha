@@ -1,16 +1,27 @@
-# React + Vite
+# VYUHA payment review
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+The existing React dashboard presents seven saved evaluation scenarios. The influence and recipient scores, policy decisions and evidence come from `src/data/evaluation.json`; this interface does not call a live bank or graph service.
 
-Currently, two official plugins are available:
+## Combined introduction and dashboard
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+From this directory:
 
-## React Compiler
+```powershell
+npm run demo
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Open http://127.0.0.1:4173/. This builds the dashboard, then serves the root procedural Three.js introduction with the dashboard preloaded at `/dashboard/`. The intro fades into the workspace. The intro needs the pinned Three.js and GSAP CDN modules; failure or reduced-motion preference skips it without blocking the dashboard.
 
-## Expanding the Oxlint configuration
+Normal playback also works on old `?preview=1` links. Developer phase controls are only enabled with `?inspect=1`.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+## Dashboard development
+
+`npm run dev` runs the React dashboard directly through Vite with hot reload. `npm run build` produces the static dashboard in `dist/`. When using the combined preview, rebuild after dashboard source changes.
+
+From the repository root, run:
+
+```powershell
+node --test tests/dashboard-presentation.test.mjs
+```
+
+Presentation helpers live in `src/presentation.js`. Keep unknown recipient scores null, preserve the independent risk dimensions, and use the saved policy template for the recommended action.

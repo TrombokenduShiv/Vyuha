@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0B0E14">
+  <meta name="description" content="VYUHA — a procedural 3D introduction for fraud and risk intelligence.">
+  <title>VYUHA · Payment review</title>
+  <style>
+    :root{color-scheme:dark;--bg:#0b1017;--ink:#e7edf3;--mint:#8ce4cb}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,sans-serif;overflow:hidden}button{font:inherit;color:inherit;cursor:pointer}button:focus-visible,a:focus-visible,select:focus-visible{outline:2px solid var(--mint);outline-offset:5px}[hidden]{display:none!important}
+    #destination{position:fixed;inset:0;background:#0b1017;opacity:0;transform:translateY(8px);transition:opacity .6s ease,transform .8s cubic-bezier(.16,1,.3,1)}#destination.revealed{opacity:1;transform:none}#dashboard{width:100%;height:100%;display:block;border:0;background:#0b1017}
+    #dashboard-loading,#dashboard-fallback{position:absolute;inset:0;display:grid;place-content:center;text-align:center;gap:15px;background:#0b1017;color:#91a0b1}#dashboard-fallback a{color:var(--mint)}
+    #preloader{position:fixed;inset:0;z-index:10;isolation:isolate;background:#0b1017;overflow:hidden}
+    #scene{display:block;width:100%;height:100%;opacity:0;touch-action:none}
+    .vignette{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 48%,transparent 25%,#0b101733 65%,#0b1017bb 100%)}
+    .header{position:absolute;top:32px;left:38px;right:38px;display:flex;align-items:center;justify-content:space-between}
+    .brand{display:flex;align-items:center;gap:11px;font-size:19px;font-weight:650;letter-spacing:.19em}.brand-mark{width:23px;height:27px;background:var(--mint);clip-path:polygon(0 0,100% 0,100% 64%,50% 100%,0 64%,0 0,22% 20%,22% 53%,50% 74%,78% 53%,78% 20%,22% 20%)}
+    .text-button{border:1px solid #ffffff20;border-radius:30px;background:#0b101755;padding:8px 17px;font-size:13px;color:#aebcc9;transition:background .2s,border-color .2s}.text-button:hover{border-color:#8ce4cb70;background:#8ce4cb0a}
+    .footer{position:absolute;bottom:47px;left:50%;transform:translateX(-50%);text-align:center;pointer-events:none;min-width:220px}.footer p{font-size:13px;letter-spacing:.01em;color:#8d9dad;margin:0 0 17px}.track{height:2px;width:160px;margin:auto;background:#ffffff0c;overflow:hidden;border-radius:3px}#progress-fill{height:100%;background:var(--mint);transform:scaleX(0);transform-origin:left}
+    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+    #preview-tools{position:absolute;top:95px;right:38px;display:flex;gap:8px}#preview-tools select{background:#111b25;color:#bdcbd8;border:1px solid #ffffff25;border-radius:7px;padding:8px}
+    @media(max-width:600px){.header{top:24px;left:23px;right:23px}.brand{font-size:17px}.footer{bottom:37px}#preview-tools{top:90px;right:23px;flex-direction:column}}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
+</style>
+  <!-- Versions are pinned; Three.js and every addon share the same release. -->
+  <script type="importmap">
+    { "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
+      "gsap": "https://cdn.jsdelivr.net/npm/gsap@3.13.0/index.js"
+    } }
+  </script>
+</head>
+<body>
+  <!-- The existing React dashboard loads behind the intro, so the handoff
+       has no navigation flash. Serve /dashboard/ from its Vite build. -->
+  <main id="destination" inert aria-hidden="true">
+    <iframe id="dashboard" src="/dashboard/" title="Vyuha payment review"></iframe>
+    <div id="dashboard-loading" role="status">Opening your workspace…</div>
+    <div id="dashboard-fallback" hidden role="status"><p>The workspace couldn’t load.</p><a href="/dashboard/">Open payment review</a></div>
+  </main>
+  <section id="preloader" aria-label="VYUHA introduction" aria-busy="true">
+    <canvas id="scene" aria-label="An armored truck deploys five walking mechanical letters that form VYUHA."></canvas>
+    <div class="vignette"></div>
+    <header class="header"><div class="brand"><span class="brand-mark" aria-hidden="true"></span>VYUHA</div><button id="skip" type="button" class="text-button">Skip intro</button></header>
+    <footer class="footer">
+      <p>Preparing your workspace</p>
+      <span id="phase-code" class="sr-only"></span><span id="phase-text" class="sr-only" role="status" aria-live="polite">Preparing Vyuha</span>
+      <div id="progress" class="track" role="progressbar" aria-label="Introduction progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="progress-fill"></div></div>
+    </footer>
+    <!-- Developer inspection is opt-in; old ?preview=1 links now play normally. -->
+    <div id="preview-tools" hidden><button id="pause" class="text-button" type="button">Pause preview</button><select id="phase-select" aria-label="Preview phase"><option value="">Jump to phase</option><option value="arrival">1 · Arrival</option><option value="unload">2 · Unload</option><option value="deployment">3 · Deployment</option><option value="walk">4 · Walk</option><option value="transformation">5 · Transformation</option><option value="exit">6 · Exit</option><option value="hero">Final word</option></select></div>
+  </section>
+  <noscript><style>#preloader,#destination{display:none}</style><p style="padding:32px">VYUHA · Enable JavaScript to open payment review.</p></noscript>
+  <script type="module">
+    const $ = (id) => document.getElementById(id);
+    const preview = new URLSearchParams(location.search).get('inspect') === '1';
+    const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+    const abort = new AbortController();
+    const listen = (target, event, handler) => target.addEventListener(event, handler, { signal: abort.signal });
+    let engine = null, finished = false;
+    let dashboardReady = false;
+    const dashboardDeadline = setTimeout(() => {
+      if (!dashboardReady) { $('dashboard-loading').hidden = true; $('dashboard-fallback').hidden = false; }
+    }, 22000);
+    window.addEventListener('message', (event) => {
+      if (event.origin !== location.origin || event.source !== $('dashboard').contentWindow || event.data?.type !== 'vyuha:dashboard-ready') return;
+      dashboardReady = true; clearTimeout(dashboardDeadline);
+      $('dashboard-loading').hidden = true; $('dashboard-fallback').hidden = true;
+    });
+    function revealDashboard() { $('destination').classList.add('revealed'); }
+
+    // A failed CDN/WebGL initialization must never trap the user behind a loader.
+    function complete(reason = 'complete', error = null) {
+      if (finished) return;
+      finished = true;
+      engine?.dispose();
+      abort.abort();
+      $('preloader').hidden = true;
+      $('preloader').setAttribute('aria-busy', 'false');
+      $('destination').inert = false;
+      $('destination').removeAttribute('aria-hidden');
+      revealDashboard();
+      if (error) {
+        console.error('[VYUHA preloader]', error);
+      }
+      $('dashboard').focus({ preventScroll: true });
+      // Integration hook: gate actual application access on your own readiness
+      // promise. Never interpret the green visual as a real risk assessment.
+      window.dispatchEvent(new CustomEvent('vyuha:complete', { detail: { reason } }));
+    }
+    listen($('skip'), 'click', () => {
+      $('skip').disabled = true; engine?.dispose(); revealDashboard();
+      $('preloader').animate([{ opacity: 1 }, { opacity: 0 }], { duration: reducedMotion.matches ? 0 : 450, fill: 'forwards' }).finished.then(() => complete('skipped'));
+    });
+    listen(reducedMotion, 'change', (event) => { if (event.matches) complete('reduced-motion'); });
+
+    if (reducedMotion.matches) {
+      complete('reduced-motion');
+    } else {
+      const watchdog = setTimeout(() => complete('unavailable', new Error('CDN initialization timed out.')), 18000);
+      try {
+        const [THREE, { OrbitControls }, { EffectComposer }, { RenderPass }, { UnrealBloomPass }, { OutputPass }, { ShaderPass }, { FXAAShader }, { gsap }] = await Promise.all([
+          import('three'), import('three/addons/controls/OrbitControls.js'),
+          import('three/addons/postprocessing/EffectComposer.js'), import('three/addons/postprocessing/RenderPass.js'),
+          import('three/addons/postprocessing/UnrealBloomPass.js'), import('three/addons/postprocessing/OutputPass.js'),
+          import('three/addons/postprocessing/ShaderPass.js'), import('three/addons/shaders/FXAAShader.js'), import('gsap')
+        ]);
+        if (!finished) {
+          engine = createPreloader(THREE, gsap, { OrbitControls, EffectComposer, RenderPass, UnrealBloomPass, OutputPass, ShaderPass, FXAAShader });
+          await engine.start();
+        }
+      } catch (error) { complete('unavailable', error); }
+      finally { clearTimeout(watchdog); }
+    }
+
+    function createPreloader(THREE, gsap, addons) {
+      const canvas = $('scene');
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color('#0b1017');
+      scene.fog = new THREE.FogExp2('#0b1017', .024);
+      const geometries = new Set(), materials = new Set();
+      const geometry = (value) => (geometries.add(value), value);
+      const material = (value) => (materials.add(value), value);
+      const standard = (options) => material(new THREE.MeshStandardMaterial(options));
+      const boxGeometry = geometry(new THREE.BoxGeometry(1, 1, 1));
+      const cylinderGeometry = geometry(new THREE.CylinderGeometry(1, 1, 1, 24));
+      function box(parent, size, position, mat) {
+        const mesh = new THREE.Mesh(boxGeometry, mat);
+        mesh.scale.set(...size); mesh.position.set(...position);
+        mesh.castShadow = true; mesh.receiveShadow = true; parent.add(mesh); return mesh;
+      }
+      function cylinder(parent, radius, length, position, mat, axis = 'y') {
+        const mesh = new THREE.Mesh(cylinderGeometry, mat);
+        mesh.scale.set(radius, length, radius); mesh.position.set(...position);
+        if (axis === 'z') mesh.rotation.x = Math.PI / 2;
+        if (axis === 'x') mesh.rotation.z = Math.PI / 2;
+        mesh.castShadow = true; mesh.receiveShadow = true; parent.add(mesh); return mesh;
+      }
+      const palette = {
+        armor: standard({ color: '#263342', metalness: .86, roughness: .31 }),
+        panel: standard({ color: '#364653', metalness: .8, roughness: .38 }),
+        dark: standard({ color: '#10171e', metalness: .72, roughness: .48 }),
+        rubber: standard({ color: '#0b1017', metalness: .14, roughness: .82 }),
+        steel: standard({ color: '#8cabb8', metalness: .92, roughness: .25 }),
+        glass: standard({ color: '#0c2535', emissive: '#16435c', emissiveIntensity: .3, metalness: .85, roughness: .15 }),
+        cyan: standard({ color: '#5ce4f2', emissive: '#19dff5', emissiveIntensity: 2.3, metalness: .3, roughness: .3 }),
+        red: standard({ color: '#ff234a', emissive: '#ff1233', emissiveIntensity: 3 }),
+        white: standard({ color: '#deefff', emissive: '#c1e5ff', emissiveIntensity: 3 })
+      };
+
+      const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
+      renderer.setClearColor('#0B0E14');
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.15;
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      // A procedural reflection studio makes high-metalness armor readable.
+      // PMREM supplies soft metallic highlights without downloading an HDR map.
+      const studio = new THREE.Scene(); studio.background = new THREE.Color('#293644');
+      const softbox = material(new THREE.MeshBasicMaterial({ color: new THREE.Color('#d5e9ff').multiplyScalar(2) }));
+      box(studio, [12, 8, .1], [0, 3, -8], softbox);
+      box(studio, [.1, 6, 12], [8, 2, 0], softbox);
+      box(studio, [12, .1, 12], [0, 8, 0], softbox);
+      box(studio, [16, 8, .1], [-3, 2, 8], material(new THREE.MeshBasicMaterial({ color: '#8fabc4' })));
+      const pmrem = new THREE.PMREMGenerator(renderer);
+      const environment = pmrem.fromScene(studio, 0, .1, 40);
+      scene.environment = environment.texture; scene.environmentIntensity = .65;
+      pmrem.dispose(); studio.clear();
+      const camera = new THREE.PerspectiveCamera(38, 1, .1, 180);
+      const controls = new addons.OrbitControls(camera, canvas);
+      controls.enabled = false; controls.enableDamping = true; controls.enablePan = false;
+      controls.minDistance = 9; controls.maxDistance = 65; controls.maxPolarAngle = Math.PI * .48;
+      const cameraRig = { x: 9, y: 9.2, z: 24, targetX: -3, targetY: 1, targetZ: 0 };
+      const cameraTarget = new THREE.Vector3();
+      let aspect = 1;
+      function updateCamera() {
+        const fit = Math.max(1, 1.65 / aspect);
+        const target = cameraTarget.set(cameraRig.targetX, cameraRig.targetY, cameraRig.targetZ);
+        camera.position.set(
+          target.x + (cameraRig.x - target.x) * fit,
+          target.y + (cameraRig.y - target.y) * fit,
+          target.z + (cameraRig.z - target.z) * fit
+        );
+        controls.target.copy(target); camera.lookAt(target);
+      }
+      const composer = new addons.EffectComposer(renderer);
+      const renderPass = new addons.RenderPass(scene, camera);
+      const bloom = new addons.UnrealBloomPass(new THREE.Vector2(1, 1), .19, .3, 1.2);
+      const outputPass = new addons.OutputPass();
+      const antialias = new addons.ShaderPass(addons.FXAAShader);
+      composer.addPass(renderPass); composer.addPass(bloom); composer.addPass(outputPass); composer.addPass(antialias);
+
+      // Environment: every physical object is made from boxes or cylinders.
+      const floor = box(scene, [220, .12, 220], [0, -.29, 0], standard({ color: '#070d15', metalness: .12, roughness: .86, envMapIntensity: .12 }));
+      floor.castShadow = false;
+      // A quiet oval studio platform replaces the grid, runway and radar marks.
+      const stage = new THREE.Mesh(geometry(new THREE.CylinderGeometry(17, 17.08, .19, 96)), standard({ color: '#101b27', metalness: .3, roughness: .68, envMapIntensity: .32 }));
+      stage.position.set(-6, -.135, 1.4); stage.scale.z = .59; stage.receiveShadow = true; scene.add(stage);
+      const ambient = new THREE.AmbientLight('#8aa8c9', .42); scene.add(ambient);
+      const key = new THREE.DirectionalLight('#ffffff', 4.6); key.position.set(1, 13, 7);
+      key.castShadow = true; key.shadow.mapSize.set(1024, 1024);
+      Object.assign(key.shadow.camera, { left: -24, right: 24, top: 15, bottom: -15, near: .5, far: 55 });
+      key.shadow.normalBias = .045; key.shadow.bias = -.00015;
+      key.target.position.set(-5, 0, 0); scene.add(key, key.target);
+      const rim = new THREE.DirectionalLight('#28aeeb', 1.2); rim.position.set(-6, 6, -8); scene.add(rim);
+      const scanner = new THREE.SpotLight('#71b9cb', 95, 50, .72, 1, 1.3);
+      scanner.position.set(-3, 10, 2); scanner.target.position.set(-5, 0, 0); scene.add(scanner, scanner.target);
+
+      function buildTruck() {
+        const root = new THREE.Group(); root.name = 'Armored transport';
+        const suspension = new THREE.Group(); root.add(suspension);
+        const wheels = [];
+        box(suspension, [8, .3, 2.85], [.2, 1.02, 0], palette.dark);
+        // Hollow box body: visible armor panels surround a real cargo cavity.
+        box(suspension, [5.8, .18, 3.05], [-.7, 1.24, 0], palette.panel);
+        box(suspension, [5.8, .2, 3.05], [-.7, 4.6, 0], palette.armor);
+        for (const z of [-1.48, 1.48]) {
+          box(suspension, [5.8, 3.3, .16], [-.7, 2.93, z], palette.armor);
+          box(suspension, [5.45, .055, .06], [-.7, 4.26, z * 1.065], palette.cyan);
+          box(suspension, [5.45, .13, .08], [-.7, 1.58, z * 1.06], palette.panel);
+          for (let x = -3.15; x < 2; x += 1.12) {
+            box(suspension, [.035, 2.02, .065], [x, 2.7, z * 1.06], palette.dark);
+            for (const y of [1.82, 3.63]) cylinder(suspension, .035, .05, [x + .1, y, z * 1.065], palette.steel, 'z');
+          }
+          // Geometric shield insignia and cargo-code bars, no image assets.
+          const crest = box(suspension, [.58, .58, .065], [-.65, 2.92, z * 1.065], palette.panel);
+          crest.rotation.z = Math.PI / 4;
+          box(suspension, [.12, .37, .07], [-.65, 2.93, z * 1.10], palette.cyan);
+          for (let i = 0; i < 5; i++) box(suspension, [.065 + (i % 2) * .04, .24, .05], [.4 + i * .18, 2.24, z * 1.07], palette.steel);
+        }
+        box(suspension, [.15, 3.3, 3.05], [2.14, 2.92, 0], palette.armor);
+        box(suspension, [2.08, 1.48, 2.75], [3.25, 1.95, 0], palette.armor);
+        box(suspension, [1.65, 1.48, 2.65], [3.02, 3.08, 0], palette.panel);
+        const windshield = box(suspension, [.07, .88, 2.29], [3.875, 3.16, 0], palette.glass);
+        windshield.rotation.z = .10;
+        box(suspension, [1.88, .13, 2.87], [3.03, 3.89, 0], palette.armor);
+        for (const z of [-1.39, 1.39]) {
+          box(suspension, [1.15, .83, .065], [2.98, 3.15, z], palette.glass);
+          box(suspension, [.3, .07, .09], [2.71, 2.51, z * 1.03], palette.steel);
+          box(suspension, [.36, .26, .18], [3.77, 2.88, z * 1.16], palette.dark);
+          box(suspension, [2, .12, .26], [3, 1.25, z * 1.08], palette.steel);
+        }
+        box(suspension, [.14, .55, 1.48], [4.33, 1.93, 0], palette.dark);
+        for (let y = 1.75; y <= 2.15; y += .12) box(suspension, [.17, .027, 1.35], [4.34, y, 0], palette.steel);
+        box(suspension, [.25, .22, 3.01], [4.4, 1.36, 0], palette.panel);
+        for (const z of [-1.06, 1.06]) box(suspension, [.12, .24, .4], [4.33, 2.16, z], palette.white);
+        box(suspension, [1.05, .12, 1.12], [2.98, 4.04, 0], palette.dark);
+        for (const z of [-.42, .42]) box(suspension, [.76, .11, .17], [2.98, 4.14, z], palette.cyan);
+        for (const x of [-2.45, -.75, 3.14]) {
+          cylinder(root, .14, 3.25, [x, .69, 0], palette.dark, 'z');
+          for (const side of [-1, 1]) {
+            const wheel = new THREE.Group(); wheel.position.set(x, .69, side * 1.49); root.add(wheel); wheels.push(wheel);
+            cylinder(wheel, .68, .42, [0, 0, 0], palette.rubber, 'z');
+            cylinder(wheel, .41, .44, [0, 0, 0], palette.panel, 'z');
+            cylinder(wheel, .19, .48, [0, 0, 0], palette.steel, 'z');
+            for (let i = 0; i < 8; i++) {
+              const a = i * Math.PI / 4;
+              cylinder(wheel, .037, .035, [Math.sin(a) * .3, Math.cos(a) * .3, side * .24], palette.steel, 'z');
+            }
+            for (let i = 0; i < 18; i++) {
+              const a = i * Math.PI / 9;
+              const tread = box(wheel, [.15, .045, .44], [Math.sin(a) * .67, Math.cos(a) * .67, 0], palette.rubber);
+              tread.rotation.z = -a;
+            }
+          }
+        }
+        for (const z of [-1.36, 1.36]) {
+          box(suspension, [.16, .5, .16], [-3.68, 1.79, z], palette.red);
+          box(suspension, [.2, 3.45, .12], [-3.65, 2.92, z * 1.11], palette.steel);
+        }
+        // Rear faces -X. The hinge sits on the far (-Z) edge and swings away
+        // from the egress lane. Rotating a centered door would be incorrect.
+        const door = new THREE.Group(); door.position.set(-3.66, 1.35, -1.44); suspension.add(door);
+        box(door, [.16, 3.15, 2.84], [0, 1.57, 1.42], palette.panel);
+        for (const z of [.28, 2.52]) box(door, [.10, 2.44, .065], [-.13, 1.42, z], palette.steel);
+        box(door, [.12, .12, .6], [-.15, 1.42, 2.11], palette.dark);
+        for (const y of [.3, 2.4]) cylinder(suspension, .11, .32, [-3.69, 1.35 + y, -1.44], palette.steel);
+        const cargoLight = new THREE.PointLight('#43dfff', 7, 5); cargoLight.position.set(-2, 3, 0); suspension.add(cargoLight);
+        root.position.set(-50, 0, 0); scene.add(root);
+        return { root, suspension, door, wheels };
+      }
+
+      function buildLeggedLetter(character, index) {
+        const root = new THREE.Group(); root.name = `Letter ${character}`;
+        const body = new THREE.Group(); body.position.y = 1.07; root.add(body);
+        const neon = standard({ color: '#57b8ff', emissive: '#008cff', emissiveIntensity: 1.05, metalness: .48, roughness: .28 });
+        // Center-line strokes form extruded block letters, entirely BoxGeometry.
+        const strokes = {
+          V: [[-.66,1.85,0,.12],[0,.12,.66,1.85]],
+          Y: [[-.65,1.85,0,1.02],[.65,1.85,0,1.02],[0,1.02,0,.12]],
+          U: [[-.63,1.85,-.63,.14],[-.63,.14,.63,.14],[.63,.14,.63,1.85]],
+          H: [[-.63,.12,-.63,1.85],[.63,.12,.63,1.85],[-.63,1,.63,1]],
+          A: [[-.68,.12,0,1.85],[0,1.85,.68,.12],[-.4,.77,.4,.77]]
+        };
+        for (const [x1,y1,x2,y2] of strokes[character]) {
+          const dx = x2-x1, dy = y2-y1, length = Math.hypot(dx,dy);
+          const stroke = box(body, [.30, length + .08, .42], [(x1+x2)/2, (y1+y2)/2, 0], neon);
+          stroke.rotation.z = -Math.atan2(dx,dy);
+          const inset = box(body, [.075, Math.max(.12,length-.14), .016], [(x1+x2)/2, (y1+y2)/2, .218], neon);
+          inset.rotation.z = stroke.rotation.z;
+        }
+        const legAssembly = new THREE.Group(); legAssembly.position.y = 1.17; root.add(legAssembly);
+        const hips = [], knees = [];
+        for (const side of [-1, 1]) {
+          const hip = new THREE.Group(); hip.position.set(side * .38, 0, 0); legAssembly.add(hip); hips.push(hip);
+          cylinder(hip, .115, .18, [0, -.04, 0], palette.steel, 'z');
+          box(hip, [.14, .45, .15], [0, -.26, 0], palette.panel);
+          const knee = new THREE.Group(); knee.position.y = -.51; hip.add(knee); knees.push(knee);
+          cylinder(knee, .105, .2, [0, 0, 0], palette.cyan, 'z');
+          box(knee, [.105, .43, .12], [0, -.23, 0], palette.steel);
+          box(knee, [.33, .13, .42], [-.055, -.565, .06], palette.dark);
+        }
+        root.visible = false;
+        root.position.set(-2.7, 1.34, 0); scene.add(root);
+        return { root, body, legAssembly, hips, knees, neon, gait: { weight: 0 }, index };
+      }
+
+      const truck = buildTruck();
+      const letters = [...'VYUHA'].map(buildLeggedLetter);
+      const state = { finish: false, paused: false, phase: 0, wheelLastX: -50 };
+      const phrases = [
+        ['Arrival', 'Armored transport approaching'], ['Unload', 'Opening the protected cargo bay'],
+        ['Deploy', 'Deploying intelligence units'], ['Align', 'Bringing every signal into focus'],
+        ['Secure', 'Completing the security sequence'], ['Ready', 'VYUHA. Ready for what’s next.']
+      ];
+      function setPhase(index) {
+        state.phase = index;
+        $('phase-code').textContent = `0${index+1} / ${phrases[index][0]}`;
+        $('phase-text').textContent = phrases[index][1];
+      }
+
+      function initializeTimeline() {
+        // A paused master timeline is sampled by our RAF clock. All property
+        // tweens belong to it; no independent GSAP ticker drives the scene.
+        const tl = gsap.timeline({ paused: true, defaults: { ease: 'power2.inOut' } });
+        const phase = (name, index) => { tl.addLabel(name); tl.call(() => setPhase(index)); };
+        phase('arrival', 0);
+        tl.to(canvas, { opacity: 1, duration: .65 }, 0);
+        tl.to(truck.root.position, { x: 0, duration: 2.7, ease: 'power3.out' }, .1);
+        tl.to(truck.suspension.rotation, { z: -.06, duration: .2, ease: 'power2.in' }, 2.25);
+        tl.to(truck.suspension.position, { y: -.13, duration: .2 }, 2.25);
+        tl.to(truck.suspension.rotation, { z: 0, duration: .85, ease: 'elastic.out(1,.35)' }, 2.45);
+        tl.to(truck.suspension.position, { y: 0, duration: .85, ease: 'elastic.out(1,.4)' }, 2.45);
+
+        phase('unload', 1);
+        tl.to(truck.door.rotation, { y: -Math.PI * .72, duration: 1.05 });
+        tl.to({}, { duration: .22 });
+
+        phase('deployment', 2);
+        const deploymentStart = tl.duration();
+        tl.to(cameraRig, { x: 4, y: 10.2, z: 28, targetX: -6.5, targetZ: 1.8, duration: 2.2 }, deploymentStart);
+        letters.forEach((letter, i) => {
+          // Every unit clears the rear opening, falls to the floor, then advances
+          // into a separate staging lane. All deployments finish before walking.
+          const at = deploymentStart + i * .69;
+          tl.set(letter.root, { visible: true }, at);
+          tl.to(letter.root.position, { x: -5.5, duration: .52, ease: 'power1.in' }, at);
+          tl.to(letter.root.position, { y: 0, duration: .32, ease: 'power2.in' }, at + .4);
+          tl.to(letter.body.position, { y: .91, duration: .1 }, at + .72);
+          tl.to(letter.body.position, { y: 1.07, duration: .32, ease: 'back.out(2)' }, at + .82);
+          tl.to(letter.root.position, { z: (4-i)*.96, duration: .48 }, at + .72);
+        });
+        tl.to({}, { duration: .2 });
+
+        phase('walk', 3);
+        const walkStart = tl.duration();
+        letters.forEach((letter, i) => {
+          const at = walkStart + i * .16;
+          const duration = 2.7 + (4-i)*.17;
+          tl.to(letter.gait, { weight: 1, duration: .2 }, at);
+          tl.to(letter.root.position, { x: -15 + i * 2.2, z: 3.8, duration, ease: 'sine.inOut' }, at);
+          tl.to(letter.gait, { weight: 0, duration: .25 }, at + duration - .25);
+        });
+        tl.to({}, { duration: .25 });
+
+        phase('transformation', 4);
+        const transformStart = tl.duration();
+        const green = new THREE.Color('#00FF41');
+        letters.forEach((letter, i) => {
+          const at = transformStart + i * .09;
+          tl.to(letter.legAssembly.scale, { y: 0, duration: .58, ease: 'power3.inOut' }, at);
+          tl.to(letter.root.position, { y: -.98, duration: .62 }, at);
+          tl.to(letter.neon.emissive, { r: green.r, g: green.g, b: green.b, duration: .9 }, at);
+          tl.to(letter.neon.color, { r: green.r, g: green.g, b: green.b, duration: .9 }, at);
+          tl.to(letter.neon, { emissiveIntensity: .95, duration: .9 }, at);
+        });
+        tl.to($('progress-fill'), { backgroundColor: '#00ff41', duration: .7 }, transformStart);
+        tl.to({}, { duration: .35 });
+
+        phase('exit', 5);
+        tl.to(truck.door.rotation, { y: 0, duration: .8, ease: 'power2.inOut' });
+        const departure = tl.duration();
+        tl.to(truck.suspension.rotation, { z: .045, duration: .4 }, departure);
+        tl.to(truck.root.position, { x: 50, duration: 2.5, ease: 'power3.in' }, departure);
+        tl.to(cameraRig, { x: -9.8, y: 4.1, z: 18.5, targetX: -10.6, targetY: 1, targetZ: 3.8, duration: 2.5 }, departure);
+        tl.addLabel('hero');
+        letters.forEach((letter) => {
+          tl.to(letter.neon, { emissiveIntensity: 1.5, duration: .65, repeat: 1, yoyo: true, ease: 'sine.inOut' }, 'hero');
+          tl.to(letter.body.scale, { x: 1.015, y: 1.015, z: 1.015, duration: .65, repeat: 1, yoyo: true, ease: 'sine.inOut' }, 'hero');
+        });
+        tl.addLabel('fade');
+        tl.call(revealDashboard, [], 'fade');
+        tl.to(canvas, { opacity: 0, duration: .8, ease: 'sine.inOut' }, 'fade');
+        tl.to($('preloader'), { opacity: 0, duration: .8, ease: 'sine.inOut' }, 'fade+=.15');
+        tl.call(() => { state.finish = true; });
+        return tl;
+      }
+
+      const timeline = initializeTimeline();
+      let raf = 0, previousTime = null, elapsed = 0, disposed = false, lastPercent = -1;
+      let quality = 1.5, frameCount = 0, frameSum = 0;
+      function resize() {
+        const width = Math.max(1, innerWidth), height = Math.max(1, innerHeight);
+        aspect = width / height; camera.aspect = aspect;
+        camera.updateProjectionMatrix();
+        // Bound fill rate and postprocessing memory, including Retina displays.
+        const dpr = Math.min(devicePixelRatio || 1, quality, Math.sqrt(1900000 / (width * height)));
+        renderer.setPixelRatio(dpr); renderer.setSize(width, height, false);
+        composer.setPixelRatio(dpr); composer.setSize(width, height); updateCamera();
+        antialias.uniforms.resolution.value.set(1 / Math.max(1, Math.floor(width * dpr)), 1 / Math.max(1, Math.floor(height * dpr)));
+      }
+      function animate(now) {
+        if (disposed) return;
+        const dt = previousTime === null ? 0 : Math.min((now - previousTime) / 1000, .1);
+        previousTime = now;
+        if (!state.paused) elapsed += dt * 1.28;
+        if (!state.paused && dt > 0) {
+          frameCount++; frameSum += dt;
+          if (frameCount === 90) {
+            if (frameSum / frameCount > .023 && quality > 1) { quality = Math.max(1, quality - .25); resize(); }
+            frameCount = 0; frameSum = 0;
+          }
+        }
+        if (preview) elapsed = Math.min(elapsed, timeline.labels.fade - .01);
+        timeline.totalTime(Math.min(elapsed, timeline.duration()), false);
+        if (state.finish) { complete(); return; }
+        // Wheels derive their angular displacement from distance, so braking and
+        // acceleration stay synchronized: theta = travelled distance / radius.
+        const dx = truck.root.position.x - state.wheelLastX;
+        truck.wheels.forEach((wheel) => { wheel.rotation.z -= dx / .68; });
+        state.wheelLastX = truck.root.position.x;
+        letters.forEach((letter) => {
+          const weight = letter.gait.weight, cycle = elapsed * 12 + letter.index * .8;
+          letter.hips.forEach((hip, i) => {
+            const stride = Math.sin(cycle + i * Math.PI);
+            hip.rotation.z = stride * .52 * weight;
+            letter.knees[i].rotation.z = Math.max(0, -stride) * .85 * weight;
+          });
+          // Bob the glyph only; keep the floor/root position owned by GSAP.
+          if (weight > 0) letter.body.position.y = 1.07 + Math.abs(Math.cos(cycle)) * .08 * weight;
+          else if (elapsed >= timeline.labels.walk) letter.body.position.y = 1.07;
+        });
+        scanner.target.position.set(-6 + Math.sin(elapsed * .23) * 7, 0, Math.cos(elapsed * .17) * 3);
+        if (controls.enabled) controls.update(); else updateCamera();
+        const percent = Math.min(100, Math.floor(elapsed / timeline.duration() * 100));
+        $('progress-fill').style.transform = `scaleX(${Math.min(1, elapsed / timeline.duration())})`;
+        if (percent !== lastPercent) { $('progress').setAttribute('aria-valuenow', percent); lastPercent = percent; }
+        composer.render();
+        raf = requestAnimationFrame(animate);
+      }
+      function dispose() {
+        if (disposed) return;
+        disposed = true; cancelAnimationFrame(raf); timeline.kill(); controls.dispose();
+        geometries.forEach((g) => g.dispose()); materials.forEach((m) => m.dispose());
+        key.shadow.dispose(); renderPass.dispose(); bloom.dispose(); outputPass.dispose(); antialias.dispose(); composer.dispose();
+        environment.dispose(); renderer.dispose(); scene.clear();
+      }
+      listen(window, 'resize', resize);
+      listen(document, 'visibilitychange', () => {
+        previousTime = null; cancelAnimationFrame(raf);
+        if (!document.hidden && !disposed) raf = requestAnimationFrame(animate);
+      });
+      listen(canvas, 'webglcontextlost', (event) => { event.preventDefault(); complete('unavailable', new Error('WebGL context lost.')); });
+      // Leave a usable page in the back/forward cache after navigating away.
+      listen(window, 'pagehide', () => complete('navigation'));
+      if (preview) {
+        $('preview-tools').hidden = false;
+        listen($('pause'), 'click', () => {
+          state.paused = !state.paused; controls.enabled = state.paused;
+          $('pause').textContent = state.paused ? 'Resume preview' : 'Pause preview';
+        });
+        listen($('phase-select'), 'change', (event) => {
+          const name = event.target.value;
+          if (!(name in timeline.labels)) return;
+          // Reset before seeking so backward review also restores visibility,
+          // positions and materials set by earlier phases.
+          timeline.totalTime(0, false);
+          elapsed = timeline.labels[name] + .02;
+          timeline.totalTime(elapsed, false);
+          state.wheelLastX = truck.root.position.x;
+          updateCamera();
+        });
+      }
+      return { async start() { resize(); await renderer.compileAsync(scene, camera); if (!disposed) raf = requestAnimationFrame(animate); }, dispose };
+    }
+  </script>
+</body>
+</html>
