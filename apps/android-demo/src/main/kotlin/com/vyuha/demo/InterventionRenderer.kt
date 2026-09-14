@@ -18,6 +18,7 @@ import com.vyuha.sdk.contracts.UserResponse
 
 /**
  * Renders the appropriate UI block based on the Vyuha InterventionDecision.
+ * Maps ActionId (A0-A6) to the appropriate intervention UI.
  */
 @Composable
 fun InterventionRenderer(
@@ -43,8 +44,74 @@ fun InterventionRenderer(
             )
             Spacer(modifier = Modifier.height(24.dp))
 
-            when (decision.action) {
-                "A4_ISOLATION_BREAK" -> {
+            when (decision.actionId) {
+                ActionId.A1_MICRO_PROMPT -> {
+                    Text(
+                        text = "Quick Check",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Do you know the person you are sending money to?\n\nTake a moment to verify this is intended.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(32.dp))
+                    Button(
+                        onClick = { onResponse(UserResponse.CONTINUED) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Yes, I'm sure")
+                    }
+                }
+                ActionId.A2_REFLECTION_CHALLENGE -> {
+                    Text(
+                        text = "Reflection Challenge",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "This transaction looks unusual for your account.\n\nPlease confirm: Why are you making this transfer?",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(32.dp))
+                    Button(
+                        onClick = { onResponse(UserResponse.CONTINUED) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("I understand the risk, proceed")
+                    }
+                }
+                ActionId.A3_COOLING_DELAY -> {
+                    Text(
+                        text = "Cooling Delay",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "This transaction has been flagged for elevated risk.\n\nA brief cooling period has been applied. Please wait before proceeding.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(32.dp))
+                    Button(
+                        onClick = { onResponse(UserResponse.CONTINUED) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Continue after delay")
+                    }
+                }
+                ActionId.A4_ISOLATION_BREAK -> {
                     Text(
                         text = "Active Call Detected",
                         style = MaterialTheme.typography.headlineMedium,
@@ -60,7 +127,7 @@ fun InterventionRenderer(
                     )
                     Spacer(modifier = Modifier.height(32.dp))
                     Button(
-                        onClick = { onResponse(UserResponse.CONTINUED) }, // Simulates ending the call
+                        onClick = { onResponse(UserResponse.CONTINUED) },
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.error
@@ -69,7 +136,7 @@ fun InterventionRenderer(
                         Text("I have ended the call")
                     }
                 }
-                "A5_TRUSTED_VERIFY" -> {
+                ActionId.A5_TRUSTED_VERIFY -> {
                     Text(
                         text = "Verify with Trusted Contact",
                         style = MaterialTheme.typography.headlineMedium,
@@ -85,10 +152,35 @@ fun InterventionRenderer(
                     )
                     Spacer(modifier = Modifier.height(32.dp))
                     Button(
-                        onClick = { onResponse(UserResponse.VERIFIED) }, // Simulates contact approving
+                        onClick = { onResponse(UserResponse.VERIFIED) },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text("Send Verification Request")
+                    }
+                }
+                ActionId.A6_STEP_UP_REQUIRED -> {
+                    Text(
+                        text = "Transaction Blocked",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "This transaction has been blocked due to extreme risk indicators.\n\nPlease contact your bank if you believe this is an error.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(32.dp))
+                    Button(
+                        onClick = { onResponse(UserResponse.CANCELLED) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
+                        Text("Contact Bank")
                     }
                 }
                 else -> {
@@ -99,7 +191,7 @@ fun InterventionRenderer(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "Action required: ${decision.action}",
+                        text = "Action required: ${decision.actionId.name}",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onErrorContainer,
                         textAlign = TextAlign.Center
@@ -131,8 +223,9 @@ fun InterventionRenderer(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("Debug Info (Slice 0/1)", fontWeight = FontWeight.Bold)
-                    Text("Action ID: ${decision.action}")
-                    Text("Severity: ${decision.severity}")
+                    Text("Action ID: ${decision.actionId.name}")
+                    Text("Belief Score: ${"%.3f".format(decision.beliefScore)}")
+                    Text("Uncertainty: ${"%.3f".format(decision.uncertainty)}")
                     Text("Reason Codes: ${decision.reasonCodes.joinToString()}")
                 }
             }

@@ -70,7 +70,7 @@ fun PaymentScreen(viewModel: PaymentViewModel = viewModel()) {
                             style = MaterialTheme.typography.headlineMedium,
                             color = MaterialTheme.colorScheme.primary
                         )
-                        Text("Decision: ${state.decision.action}")
+                        Text("Decision: ${state.decision.actionId.name}")
                         Button(onClick = { viewModel.reset() }) {
                             Text("Start Over")
                         }
