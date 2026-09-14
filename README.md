@@ -6,6 +6,8 @@ The repository includes trained synthetic-data models, a Kotlin edge runtime, a 
 
 Start with the [plain-language project guide](docs/VYUHA_PROJECT_GUIDE.md), [measured validation report](docs/VALIDATION_REPORT_2026-09-14.md), [deployment runbook](docs/DEPLOYMENT_RUNBOOK.md), [architecture amendment](docs/decisions/ADR-005-dual-integrity-and-evidence.md), and [signal inventory](privacy/signal-manifest.json). The amendment supersedes conflicting V1 descriptions.
 
+For presentations, use the [judge demonstration and setup guide](docs/JUDGE_DEMO_GUIDE.md). Its verified rehearsal commands are `python -m scripts.judge_demo` for local model decisions and `python -m scripts.judge_demo --api-url http://127.0.0.1:8080` for live signed graph evidence and decisions. The guide explains the dashboard replay and the Android host's remaining integration gaps.
+
 ## Implemented
 
 - Real multi-head HGT with reverse relationships, relative time and amount encoding, strict graph validation, separate label partitions and calibration.
