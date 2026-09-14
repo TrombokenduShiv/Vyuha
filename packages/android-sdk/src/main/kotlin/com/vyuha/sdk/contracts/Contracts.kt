@@ -63,9 +63,9 @@ data class ContextSnapshot(
     val sessionId: String = UUID.randomUUID().toString(),
     val timestampMs: Long = System.currentTimeMillis(),
     val transaction: TransactionContext,
-    val communication: CommunicationContext,
-    val device: DeviceContext,
-    val baseline: BaselineContext,
+    val communication: CommunicationContext? = null,
+    val device: DeviceContext? = null,
+    val baseline: BaselineContext? = null,
     /** Injected from GraphRiskToken when available; null if offline / missing. */
     val graphRiskToken: GraphRiskToken? = null
 )

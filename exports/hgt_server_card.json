@@ -1,0 +1,26 @@
+{
+    "model": "HGT (Heterogeneous Graph Transformer)",
+    "version": "v0.1",
+    "format": "PyTorch state_dict",
+    "config": {
+        "hidden_dim": 64,
+        "num_heads": 4,
+        "num_layers": 2,
+        "feature_dims": {
+            "account": 8,
+            "vpa": 4,
+            "device": 4,
+            "phone": 4
+        }
+    },
+    "parameters": 183178,
+    "target_device": "Server (graph-risk-api)",
+    "node_types": [
+        "account",
+        "vpa",
+        "device",
+        "phone"
+    ],
+    "edge_types": 5,
+    "output": "risk_score (float), confidence (float), embedding (64-dim)"
+}

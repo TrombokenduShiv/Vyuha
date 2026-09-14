@@ -1,0 +1,27 @@
+# Vyuha 2.0 — ML Dependencies
+# =============================
+# Core
+torch>=2.1.0
+numpy>=1.24.0
+pandas>=2.0.0
+scikit-learn>=1.3.0
+
+# Graph Neural Networks
+torch-geometric>=2.4.0
+torch-scatter>=2.1.0
+torch-sparse>=0.6.18
+
+# Visualization & Reporting
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# Model Export
+onnx>=1.15.0
+onnxruntime>=1.16.0
+
+# API (for graph-risk-api service)
+fastapi>=0.104.0
+uvicorn>=0.24.0
+
+# Utilities
+tqdm>=4.65.0

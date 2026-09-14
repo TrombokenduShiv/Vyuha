@@ -87,19 +87,11 @@ class PolicyBandit {
         }
 
         return InterventionDecision(
-            action = actionId.name,
-            severity = when(actionId) {
-                ActionId.A0_PASS -> 0
-                ActionId.A1_MICRO_PROMPT -> 1
-                ActionId.A2_REFLECTION_CHALLENGE -> 2
-                ActionId.A3_COOLING_DELAY -> 3
-                ActionId.A4_ISOLATION_BREAK -> 4
-                ActionId.A5_TRUSTED_VERIFY -> 5
-                ActionId.A6_STEP_UP_REQUIRED -> 6
-            },
-            reasonCodes = reasonCodes,
-            cooldownSeconds = if (actionId == ActionId.A3_COOLING_DELAY) 300 else 0,
-            trustedVerification = actionId == ActionId.A5_TRUSTED_VERIFY
+            sessionId = belief.sessionId,
+            actionId = actionId,
+            beliefScore = belief.pCoercion,
+            uncertainty = uncertaintyScalar,
+            reasonCodes = reasonCodes
         )
     }
 }

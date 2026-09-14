@@ -36,7 +36,7 @@ class TriageGate {
         var score = 0.0
 
         // Communication risk: active call during payment is a strong signal
-        if (snapshot.communication.active) score += 0.35
+        if (snapshot.communication?.active == true) score += 0.35
 
         // Transaction risk: high amount + novel beneficiary
         if (snapshot.transaction.amountBucket == AmountBucket.HIGH ||
@@ -46,11 +46,11 @@ class TriageGate {
         if (snapshot.transaction.beneficiaryNovelty > 0.7) score += 0.10
 
         // Device risk: screen capture or overlay
-        if (snapshot.device.captureRisk) score += 0.15
-        if (snapshot.device.overlayRisk) score += 0.10
+        if (snapshot.device?.captureRisk == true) score += 0.15
+        if (snapshot.device?.overlayRisk == true) score += 0.10
 
         // Baseline deviation
-        if (snapshot.baseline.deviationScore > 0.5) score += 0.10
+        if ((snapshot.baseline?.deviationScore ?: 0.0) > 0.5) score += 0.10
 
         // Graph risk (if available)
         if (graphToken != null && graphToken.riskScore > 0.7) score += 0.20
@@ -61,17 +61,17 @@ class TriageGate {
         val experts = mutableListOf<ExpertScore>()
         if (score > TRIAGE_THRESHOLD) {
             // Top-K=2 sparse routing
-            if (snapshot.communication.active) {
+            if (snapshot.communication?.active == true) {
                 experts.add(ExpertScore("communication_expert", 0.35 + (graphToken?.riskScore ?: 0.0) * 0.3))
             }
             if (snapshot.transaction.beneficiaryNovelty > 0.5) {
                 experts.add(ExpertScore("transaction_expert", snapshot.transaction.beneficiaryNovelty * 0.8))
             }
-            if (snapshot.device.captureRisk || snapshot.device.overlayRisk) {
-                experts.add(ExpertScore("device_expert", if (snapshot.device.captureRisk) 0.7 else 0.4))
+            if (snapshot.device?.captureRisk == true || snapshot.device?.overlayRisk == true) {
+                experts.add(ExpertScore("device_expert", if (snapshot.device?.captureRisk == true) 0.7 else 0.4))
             }
-            if (snapshot.baseline.deviationScore > 0.3) {
-                experts.add(ExpertScore("baseline_expert", snapshot.baseline.deviationScore))
+            if ((snapshot.baseline?.deviationScore ?: 0.0) > 0.3) {
+                experts.add(ExpertScore("baseline_expert", snapshot.baseline?.deviationScore ?: 0.0))
             }
             // Keep only top-2
             val topK = experts.sortedByDescending { it.score }.take(2)

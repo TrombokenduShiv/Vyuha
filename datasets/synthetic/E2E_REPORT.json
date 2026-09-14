@@ -1,0 +1,37 @@
+{
+    "n_samples": 1000,
+    "n_fraud": 150,
+    "n_legit": 850,
+    "correct_interventions": 150,
+    "detection_rate": 1.0,
+    "false_alarm_rate": 0.0824,
+    "miss_rate": 0.0,
+    "action_distribution": {
+        "A0_PASS": 780,
+        "A2_REFLECTION_CHALLENGE": 68,
+        "A3_COOLING_DELAY": 23,
+        "A4_ISOLATION_BREAK": 129
+    },
+    "latency_ms": {
+        "mean": 0.369,
+        "p50": 0.329,
+        "p95": 0.61,
+        "p99": 0.865,
+        "max": 2.034
+    },
+    "conformal_coverage": {
+        "coverage": 1.0,
+        "target_coverage": 0.9,
+        "coverage_met": true,
+        "avg_set_size": 4.0,
+        "distribution": {
+            "SAFE_only": 0.0,
+            "RISK_only": 0.0,
+            "SAFE_RISK": 0.0,
+            "ABSTAIN": 1.0
+        },
+        "n_test": 1000
+    },
+    "mean_belief_fraud": 0.7094,
+    "mean_belief_legit": 0.1382
+}

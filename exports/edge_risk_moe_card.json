@@ -1,0 +1,13 @@
+{
+    "model": "EdgeRiskMoE",
+    "version": "v0.1",
+    "format": "ONNX",
+    "input_shape": [
+        1,
+        6
+    ],
+    "output": "risk_logits (float), routing_weights, confidence",
+    "parameters": 954,
+    "target_device": "Android (ExecuTorch / ONNX Runtime Mobile)",
+    "latency_target_ms": 5
+}
